@@ -47,5 +47,9 @@ class AiDataPlcApplicationTests {
 
     ModelProviderSetting disabled = modelProviderService.setProviderEnabled("customer-gateway", false);
     assertThat(disabled.enabled()).isFalse();
+
+    modelProviderService.deleteProvider("customer-gateway");
+    assertThat(modelProviderService.providers())
+        .noneMatch(item -> item.providerId().equals("customer-gateway"));
   }
 }

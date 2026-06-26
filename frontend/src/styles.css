@@ -414,6 +414,9 @@ th {
 }
 
 .card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: 12px;
 }
 
@@ -421,6 +424,11 @@ th {
   padding: 0 10px;
   color: #263238;
   background: #edf3f5;
+}
+
+.card-actions button.danger {
+  color: #8b2f2f;
+  background: #f8e8e8;
 }
 
 .export-tools {

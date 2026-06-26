@@ -14,6 +14,7 @@ import {
   Power,
   RefreshCw,
   ShieldCheck,
+  Trash2,
 } from 'lucide-react'
 import {
   CartesianGrid,
@@ -216,6 +217,23 @@ export default function App() {
       )
     } catch (error) {
       setProviderMessage(error instanceof Error ? error.message : '状态更新失败')
+    }
+  }
+
+  async function deleteProvider(provider: Provider) {
+    setProviderMessage('')
+    try {
+      const response = await fetch(`${apiBase}/api/v1/models/providers/${provider.providerId}`, {
+        method: 'DELETE',
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({ error: '删除失败' }))
+        throw new Error(payload.error || '删除失败')
+      }
+      setProviders((current) => current.filter((item) => item.providerId !== provider.providerId))
+      setProviderMessage(`已删除 ${provider.displayName}`)
+    } catch (error) {
+      setProviderMessage(error instanceof Error ? error.message : '删除失败')
     }
   }
 
@@ -487,6 +505,10 @@ export default function App() {
                       <button type="button" onClick={() => toggleProvider(provider)}>
                         <Power size={14} />
                         <span>{provider.enabled ? '停用' : '启用'}</span>
+                      </button>
+                      <button type="button" className="danger" onClick={() => deleteProvider(provider)}>
+                        <Trash2 size={14} />
+                        <span>删除</span>
                       </button>
                     </div>
                   )}

@@ -246,6 +246,7 @@ sequenceDiagram
 | `GET` | `/api/v1/models/providers` | 模型供应商配置状态，不暴露 API Key |
 | `POST` | `/api/v1/models/providers` | 新增或更新用户自定义 API Provider，响应只返回脱敏状态 |
 | `PATCH` | `/api/v1/models/providers/{providerId}/enabled` | 启用或停用用户自定义 API Provider |
+| `DELETE` | `/api/v1/models/providers/{providerId}` | 删除用户自定义 API Provider |
 | `GET` | `/api/v1/models/control-policy` | 当前 AI 控制模式和安全策略 |
 | `GET` | `/api/v1/datasets/formats` | 支持的数据集导出格式 |
 | `POST` | `/api/v1/datasets/exports` | 创建数据集导出任务 |
@@ -628,6 +629,7 @@ Default mode is `RECOMMEND_ONLY`.
 | `GET` | `/api/v1/models/providers` | Model provider configuration status without exposing API keys |
 | `POST` | `/api/v1/models/providers` | Add or update a user-defined API provider, returning masked status only |
 | `PATCH` | `/api/v1/models/providers/{providerId}/enabled` | Enable or disable a user-defined API provider |
+| `DELETE` | `/api/v1/models/providers/{providerId}` | Delete a user-defined API provider |
 | `GET` | `/api/v1/models/control-policy` | Current AI control mode and safety policy |
 | `GET` | `/api/v1/datasets/formats` | Supported dataset export formats |
 | `POST` | `/api/v1/datasets/exports` | Create a dataset export job |

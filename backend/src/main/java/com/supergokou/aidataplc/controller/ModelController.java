@@ -7,12 +7,15 @@ import com.supergokou.aidataplc.dto.ModelProviderUpsertRequest;
 import com.supergokou.aidataplc.service.ModelProviderService;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -40,6 +43,12 @@ public class ModelController {
       @PathVariable String providerId,
       @Valid @RequestBody ModelProviderEnabledRequest request) {
     return modelProviderService.setProviderEnabled(providerId, request.enabled());
+  }
+
+  @DeleteMapping("/providers/{providerId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void deleteProvider(@PathVariable String providerId) {
+    modelProviderService.deleteProvider(providerId);
   }
 
   @GetMapping("/control-policy")

@@ -80,6 +80,13 @@ public class ModelProviderService {
     return updated.toSetting();
   }
 
+  public void deleteProvider(String providerId) {
+    RuntimeModelProvider removed = runtimeProviders.remove(providerId.toLowerCase(Locale.ROOT));
+    if (removed == null) {
+      throw new IllegalArgumentException("Only user-added providers can be deleted here");
+    }
+  }
+
   public ControlPolicy controlPolicy() {
     boolean approval = switch (properties.getAiControlMode()) {
       case APPROVAL_REQUIRED, AUTO_DISPATCH -> true;
