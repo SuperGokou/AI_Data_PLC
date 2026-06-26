@@ -17,6 +17,157 @@ body {
   overflow-x: hidden;
 }
 
+.demo-login-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 28px;
+  background:
+    linear-gradient(120deg, rgba(55, 125, 255, 0.1), rgba(20, 184, 166, 0.09) 38%, transparent 72%),
+    #eef3f6;
+}
+
+.demo-login-panel {
+  width: min(760px, 100%);
+  padding: 24px;
+  color: #17212b;
+  background: #ffffff;
+  border: 1px solid #dfe8f2;
+  border-radius: 8px;
+  box-shadow: 0 24px 54px rgba(24, 39, 54, 0.14);
+}
+
+.demo-login-brand {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 12px;
+  align-items: center;
+  min-height: 74px;
+  padding: 12px;
+  color: #f7fbff;
+  background: linear-gradient(135deg, #315efb 0%, #2aa7f0 50%, #16c7b5 100%);
+  border-radius: 8px;
+}
+
+.demo-login-brand strong,
+.demo-login-brand span {
+  display: block;
+}
+
+.demo-login-brand span {
+  margin-top: 5px;
+  color: #e5fbff;
+  font-size: 13px;
+}
+
+.demo-login-copy {
+  margin-top: 22px;
+}
+
+.demo-login-copy span {
+  color: #377dff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.demo-login-copy h1 {
+  margin-top: 7px;
+  font-size: 28px;
+  line-height: 1.18;
+}
+
+.demo-login-copy p {
+  margin-top: 8px;
+  color: #667085;
+  line-height: 1.65;
+}
+
+.demo-account-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.demo-login-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  background: #f8fbff;
+  border: 1px solid #dfe8f2;
+  border-radius: 8px;
+}
+
+.demo-login-card-head {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.demo-login-card-head strong,
+.demo-login-card-head span {
+  display: block;
+}
+
+.demo-login-card-head span {
+  margin-top: 4px;
+  color: #667085;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.demo-account-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #315efb, #16c7b5);
+  border-radius: 8px;
+}
+
+.demo-credential-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.demo-credential-grid div {
+  min-height: 62px;
+  padding: 10px;
+  background: #ffffff;
+  border: 1px solid #dfe8f2;
+  border-radius: 8px;
+}
+
+.demo-credential-grid span,
+.demo-credential-grid strong {
+  display: block;
+}
+
+.demo-credential-grid span {
+  color: #667085;
+  font-size: 12px;
+}
+
+.demo-credential-grid strong {
+  margin-top: 6px;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 18px;
+}
+
+.demo-login-card button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #315efb, #16c7b5);
+  border-radius: 8px;
+}
+
 button,
 input,
 select {
@@ -182,6 +333,54 @@ nav button.active {
 
 nav button.active {
   font-weight: 700;
+}
+
+.demo-account-card {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 34px;
+  gap: 9px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 10px;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.demo-account-card .demo-account-icon {
+  width: 34px;
+  height: 34px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+}
+
+.demo-account-card strong,
+.demo-account-card span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.demo-account-card strong {
+  font-size: 13px;
+}
+
+.demo-account-card span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.demo-account-card button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
 }
 
 .sidebar-footer {
@@ -1136,6 +1335,7 @@ td {
   .band-kpis,
   .metric-grid,
   .pipeline,
+  .demo-account-list,
   .form-grid {
     grid-template-columns: 1fr;
   }

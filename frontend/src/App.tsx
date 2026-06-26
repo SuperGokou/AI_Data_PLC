@@ -7,11 +7,14 @@ import {
   FileSpreadsheet,
   Gauge,
   GitBranch,
+  LogIn,
+  LogOut,
   RefreshCw,
   Search,
   ServerCog,
   ShieldCheck,
   SlidersHorizontal,
+  UserRound,
 } from 'lucide-react'
 import {
   Bar,
@@ -69,11 +72,37 @@ type Provider = {
 }
 
 type ThemeId = 'aurora' | 'graphite'
+type DemoAccountId = 'admin' | 'guest'
+type DemoAccount = {
+  id: DemoAccountId
+  password: string
+  name: string
+  role: string
+  note: string
+}
 type StatDatum = { name: string; value: number }
 type FetchResult<T> = { data: T; ok: boolean }
 
 const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
 const chartColors = ['#4f8cff', '#14b8a6', '#8b6cf6', '#f2b84b', '#ef6f6c', '#65758b']
+const demoSessionKey = 'fangzhou-demo-account'
+
+const demoAccounts: DemoAccount[] = [
+  {
+    id: 'admin',
+    password: 'admin',
+    name: '管理员演示',
+    role: 'Admin Demo',
+    note: '全功能展示与管理演示入口',
+  },
+  {
+    id: 'guest',
+    password: 'guest',
+    name: '访客演示',
+    role: 'Guest Demo',
+    note: '客户预览与数据展示演示入口',
+  },
+]
 
 const fallbackOverview: Overview = {
   activeBatches: 0,
@@ -94,6 +123,11 @@ const viewIds = new Set(['overview', 'collection', 'process', 'points', 'data'])
 function initialView() {
   const requestedView = new URLSearchParams(window.location.search).get('view') || ''
   return viewIds.has(requestedView) ? requestedView : 'overview'
+}
+
+function readDemoAccount() {
+  const saved = window.localStorage.getItem(demoSessionKey)
+  return demoAccounts.find((account) => account.id === saved) || null
 }
 
 async function fetchJson<T>(path: string, fallback: T): Promise<FetchResult<T>> {
@@ -133,10 +167,24 @@ export default function App() {
   const [points, setPoints] = useState<Point[]>([])
   const [steps, setSteps] = useState<ProcessStep[]>([])
   const [providers, setProviders] = useState<Provider[]>([])
+  const [demoAccount, setDemoAccount] = useState<DemoAccount | null>(() => readDemoAccount())
 
   useEffect(() => {
+    if (!demoAccount) return
     void refresh()
-  }, [])
+  }, [demoAccount])
+
+  function enterDemo(account: DemoAccount) {
+    window.localStorage.setItem(demoSessionKey, account.id)
+    setDemoAccount(account)
+  }
+
+  function exitDemo() {
+    window.localStorage.removeItem(demoSessionKey)
+    setDemoAccount(null)
+    setLastUpdated('')
+    setRefreshError('')
+  }
 
   async function refresh() {
     setIsRefreshing(true)
@@ -201,6 +249,10 @@ export default function App() {
 
   const activeNav = navigation.find((item) => item.id === activeView) || navigation[0]
 
+  if (!demoAccount) {
+    return <DemoLoginScreen accounts={demoAccounts} onEnter={enterDemo} />
+  }
+
   return (
     <div className="app-shell" data-theme={theme}>
       <aside className="sidebar">
@@ -231,6 +283,19 @@ export default function App() {
             )
           })}
         </nav>
+
+        <div className="demo-account-card">
+          <div className="demo-account-icon">
+            <UserRound size={18} />
+          </div>
+          <div>
+            <strong>{demoAccount.name}</strong>
+            <span>{demoAccount.id} / {demoAccount.role}</span>
+          </div>
+          <button type="button" onClick={exitDemo} title="切换演示账号">
+            <LogOut size={16} />
+          </button>
+        </div>
 
         <div className="sidebar-footer">
           <div>
@@ -458,6 +523,66 @@ export default function App() {
           </Panel>
         )}
       </main>
+    </div>
+  )
+}
+
+function DemoLoginScreen({
+  accounts,
+  onEnter,
+}: {
+  accounts: DemoAccount[]
+  onEnter: (account: DemoAccount) => void
+}) {
+  return (
+    <div className="demo-login-shell">
+      <section className="demo-login-panel">
+        <div className="demo-login-brand">
+          <div className="brand-mark">
+            <Factory size={24} />
+          </div>
+          <div>
+            <strong>方舟智造（上海）</strong>
+            <span>工业数据中台</span>
+          </div>
+        </div>
+
+        <div className="demo-login-copy">
+          <span>Demo Login</span>
+          <h1>选择演示账号进入系统</h1>
+          <p>账号密码固定展示，无需输入。当前仅用于演示入口，进入后前端功能全部开放。</p>
+        </div>
+
+        <div className="demo-account-list">
+          {accounts.map((account) => (
+            <article key={account.id} className="demo-login-card">
+              <div className="demo-login-card-head">
+                <div className="demo-account-icon">
+                  <UserRound size={18} />
+                </div>
+                <div>
+                  <strong>{account.name}</strong>
+                  <span>{account.note}</span>
+                </div>
+              </div>
+              <div className="demo-credential-grid">
+                <div>
+                  <span>账号</span>
+                  <strong>{account.id}</strong>
+                </div>
+                <div>
+                  <span>密码</span>
+                  <strong>{account.password}</strong>
+                </div>
+              </div>
+              <button type="button" onClick={() => onEnter(account)}>
+                <LogIn size={17} />
+                进入 {account.id}
+              </button>
+            </article>
+          ))}
+        </div>
+      </section>
     </div>
   )
 }
