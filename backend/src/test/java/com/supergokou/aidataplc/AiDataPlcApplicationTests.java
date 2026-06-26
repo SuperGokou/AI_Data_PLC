@@ -114,12 +114,18 @@ class AiDataPlcApplicationTests {
             "data.admin@ark-mfg.local",
             PlatformUserRole.ADMIN,
             "Data Platform",
-            true));
+            true,
+            "graphite",
+            "points",
+            java.util.List.of("overview", "points", "data")));
 
     assertThat(user.userId()).isEqualTo("data-admin");
     assertThat(user.role()).isEqualTo(PlatformUserRole.ADMIN);
     assertThat(user.enabled()).isTrue();
     assertThat(user.source()).isEqualTo("USER_ADDED");
+    assertThat(user.frontendProfile().theme()).isEqualTo("graphite");
+    assertThat(user.frontendProfile().homeView()).isEqualTo("points");
+    assertThat(user.frontendProfile().modules()).containsExactly("overview", "points", "data");
 
     PlatformUser disabled = userManagementService.setUserEnabled("data-admin", false);
     assertThat(disabled.enabled()).isFalse();
@@ -131,5 +137,17 @@ class AiDataPlcApplicationTests {
     assertThatThrownBy(() -> userManagementService.deleteUser("admin"))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("System bootstrap users");
+  }
+
+  @Test
+  void logsInFrontendAccountWithRoleSpecificProfile() {
+    PlatformUser operator = userManagementService.loginFrontend("ops.lead");
+
+    assertThat(operator.userId()).isEqualTo("ops-lead");
+    assertThat(operator.lastLoginAt()).isNotNull();
+    assertThat(operator.frontendProfile().theme()).isEqualTo("aurora");
+    assertThat(operator.frontendProfile().homeView()).isEqualTo("process");
+    assertThat(operator.frontendProfile().modules())
+        .containsExactly("overview", "collection", "process");
   }
 }

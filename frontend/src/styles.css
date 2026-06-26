@@ -17,6 +17,150 @@ body {
   overflow-x: hidden;
 }
 
+.login-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 28px;
+  background:
+    linear-gradient(120deg, rgba(55, 125, 255, 0.1), rgba(20, 184, 166, 0.09) 38%, transparent 72%),
+    #eef3f6;
+}
+
+.login-panel {
+  width: min(520px, 100%);
+  padding: 24px;
+  color: #17212b;
+  background: #ffffff;
+  border: 1px solid #dfe8f2;
+  border-radius: 8px;
+  box-shadow: 0 24px 54px rgba(24, 39, 54, 0.14);
+}
+
+.login-brand {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 12px;
+  align-items: center;
+  min-height: 74px;
+  padding: 12px;
+  color: #f7fbff;
+  background: linear-gradient(135deg, #315efb 0%, #2aa7f0 50%, #16c7b5 100%);
+  border-radius: 8px;
+}
+
+.login-brand strong,
+.login-brand span {
+  display: block;
+}
+
+.login-brand span {
+  margin-top: 5px;
+  color: #e5fbff;
+  font-size: 13px;
+}
+
+.login-copy {
+  margin-top: 22px;
+}
+
+.login-copy span {
+  color: #377dff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.login-copy h1 {
+  margin-top: 7px;
+  font-size: 28px;
+}
+
+.login-copy p {
+  margin-top: 8px;
+  color: #667085;
+  line-height: 1.65;
+}
+
+.login-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.login-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.login-form label span {
+  color: #667085;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.login-form input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  color: #17212b;
+  background: #f8fbff;
+  border: 1px solid #dfe8f2;
+  border-radius: 8px;
+  outline: 0;
+}
+
+.login-form input:focus {
+  border-color: #377dff;
+  box-shadow: 0 0 0 3px rgba(55, 125, 255, 0.16);
+}
+
+.login-form button,
+.quick-login button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 8px;
+}
+
+.login-form button {
+  color: #ffffff;
+  background: linear-gradient(135deg, #315efb, #16c7b5);
+}
+
+.login-form button:disabled,
+.quick-login button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.login-error {
+  color: #d95b5b;
+  font-size: 13px;
+}
+
+.quick-login {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.quick-login button {
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 68px;
+  color: #17212b;
+  background: #f8fbff;
+  border: 1px solid #dfe8f2;
+}
+
+.quick-login small {
+  color: #667085;
+}
+
 button,
 input,
 select {
@@ -184,6 +328,54 @@ nav button.active {
   font-weight: 700;
 }
 
+.account-card {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  gap: 9px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 10px;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.account-avatar,
+.account-card button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border-radius: 8px;
+}
+
+.account-card button {
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.account-card strong,
+.account-card span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-card strong {
+  font-size: 13px;
+}
+
+.account-card span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .sidebar-footer {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -249,6 +441,13 @@ h1 {
   font-size: 27px;
   font-weight: 780;
   line-height: 1.18;
+}
+
+.profile-focus {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .topbar-controls {

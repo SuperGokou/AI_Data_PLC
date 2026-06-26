@@ -29,6 +29,7 @@ public class HomeController {
         "admin", "/admin/index.html",
         "endpoints", Map.of(
             "health", "/actuator/health",
+            "authLogin", "/api/v1/auth/login",
             "overview", "/api/v1/overview",
             "users", "/api/v1/users",
             "providers", "/api/v1/models/providers",

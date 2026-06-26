@@ -1,8 +1,17 @@
+const moduleOptions = [
+  ['overview', '展示总览'],
+  ['collection', '采集链路'],
+  ['process', '工艺展示'],
+  ['points', '测点展示'],
+  ['data', '数据说明'],
+]
+
 const state = {
   view: 'overview',
   theme: localStorage.getItem('ai-data-plc-admin-theme') || 'aurora',
   overview: null,
   users: [],
+  userDraft: null,
   providers: [],
   providerDraft: null,
   formats: [],
@@ -13,7 +22,7 @@ const state = {
 
 const views = {
   overview: ['管理总览', '工业数据中台后台'],
-  users: ['用户管理', '后台账号与角色'],
+  users: ['用户管理', '账号、角色与前台画像'],
   models: ['模型/API', '供应商与密钥配置'],
   data: ['数据接口', '表格来源与接口状态'],
 }
@@ -60,6 +69,16 @@ app.addEventListener('click', async (event) => {
         body: JSON.stringify({ enabled: enabled !== 'true' }),
       })
       showStatus('用户状态已更新')
+    }
+    if (action === 'edit-user') {
+      state.userDraft = state.users.find((user) => user.userId === id) || null
+      render()
+      return
+    }
+    if (action === 'new-user') {
+      state.userDraft = null
+      render()
+      return
     }
     if (action === 'delete-user') {
       await api(`/api/v1/users/${encodeURIComponent(id)}`, { method: 'DELETE' })
@@ -141,12 +160,16 @@ async function saveUser(form) {
     role: formData.get('role'),
     department: formData.get('department'),
     enabled: formData.get('enabled') === 'on',
+    frontendTheme: formData.get('frontendTheme'),
+    frontendHomeView: formData.get('frontendHomeView'),
+    frontendModules: formData.getAll('frontendModules'),
   }
   try {
     await api('/api/v1/users', { method: 'POST', body: JSON.stringify(payload) })
+    state.userDraft = null
     form.reset()
     form.elements.enabled.checked = true
-    showStatus('用户已保存')
+    showStatus('用户与前台画像已保存')
     await loadAll()
   } catch (error) {
     showStatus(error.message, true)
@@ -210,14 +233,14 @@ function renderOverview() {
     <section class="panel">
       <div class="section-title">
         <div>
-          <h2>职责边界</h2>
-          <p>frontend 只负责展示客户可看的真实表格数据；backend 管理台负责用户、模型供应商、API Key 和接口治理。</p>
+          <h2>账号驱动的前台展示</h2>
+          <p>不同用户登录 frontend 后，会按后台配置自动切换主题、默认首页和可见模块；backend 管理台负责维护这些账号画像。</p>
         </div>
       </div>
       <div class="data-list">
         <article><strong>展示端</strong><span>https://ai-data-plc-frontend.onrender.com/</span></article>
-        <article><strong>管理端</strong><span>当前 backend /admin 页面</span></article>
-        <article><strong>API</strong><span>/api/v1、/api/v1/overview、/api/v1/users</span></article>
+        <article><strong>登录接口</strong><span>POST /api/v1/auth/login</span></article>
+        <article><strong>画像字段</strong><span>theme / homeView / modules</span></article>
       </div>
     </section>
     <section class="panel">
@@ -232,64 +255,94 @@ function renderOverview() {
 }
 
 function renderUsers() {
-  const rows = state.users.map((user) => `
-    <tr>
-      <td><strong>${escapeHtml(user.displayName)}</strong><br><span class="muted">${escapeHtml(user.userId)}</span></td>
-      <td>${escapeHtml(user.username)}<br><span class="muted">${escapeHtml(user.email)}</span></td>
-      <td>${tag(roleName(user.role), user.role === 'ADMIN' ? 'ok' : '')}</td>
-      <td>${escapeHtml(user.department)}</td>
-      <td>${tag(user.enabled ? '启用' : '停用', user.enabled ? 'ok' : 'danger')}</td>
-      <td>${tag(user.source === 'SYSTEM' ? '系统内置' : '后台新增', user.source === 'SYSTEM' ? '' : 'warn')}</td>
-      <td>
-        <div class="row-actions">
-          <button type="button" data-action="toggle-user" data-id="${escapeHtml(user.userId)}" data-enabled="${user.enabled}">
-            ${user.enabled ? '停用' : '启用'}
-          </button>
-          ${user.source === 'SYSTEM' ? '<button type="button" class="muted" disabled>内置</button>' : `<button type="button" class="danger" data-action="delete-user" data-id="${escapeHtml(user.userId)}">删除</button>`}
-        </div>
-      </td>
-    </tr>
-  `).join('')
+  const rows = state.users.map((user) => {
+    const profile = user.frontendProfile || {}
+    return `
+      <tr>
+        <td><strong>${escapeHtml(user.displayName)}</strong><br><span class="muted">${escapeHtml(user.userId)}</span></td>
+        <td>${escapeHtml(user.username)}<br><span class="muted">${escapeHtml(user.email)}</span></td>
+        <td>${tag(roleName(user.role), user.role === 'ADMIN' ? 'ok' : '')}</td>
+        <td>${escapeHtml(user.department)}</td>
+        <td>${tag(themeName(profile.theme), profile.theme === 'aurora' ? 'ok' : '')}</td>
+        <td>${escapeHtml(moduleName(profile.homeView))}<br><span class="muted">${moduleList(profile.modules)}</span></td>
+        <td>${tag(user.enabled ? '启用' : '停用', user.enabled ? 'ok' : 'danger')}</td>
+        <td>
+          <div class="row-actions">
+            <button type="button" data-action="edit-user" data-id="${escapeHtml(user.userId)}">编辑画像</button>
+            <button type="button" data-action="toggle-user" data-id="${escapeHtml(user.userId)}" data-enabled="${user.enabled}">
+              ${user.enabled ? '停用' : '启用'}
+            </button>
+            ${user.source === 'SYSTEM' ? '<button type="button" class="muted" disabled>内置</button>' : `<button type="button" class="danger" data-action="delete-user" data-id="${escapeHtml(user.userId)}">删除</button>`}
+          </div>
+        </td>
+      </tr>
+    `
+  }).join('')
   return `
     <div class="split">
       <section class="panel">
         <div class="section-title">
           <div>
             <h2>用户列表</h2>
-            <p>账号、角色和启停状态只在 backend 管理台维护。</p>
+            <p>账号、角色、启停状态和 frontend 展示画像只在 backend 管理台维护。</p>
           </div>
         </div>
-        ${table(['用户', '登录标识', '角色', '部门', '状态', '来源', '操作'], rows)}
+        ${table(['用户', '登录标识', '角色', '部门', '前台主题', '首页/模块', '状态', '操作'], rows)}
       </section>
-      <section class="panel">
-        <div class="section-title">
-          <div>
-            <h2>新增/更新用户</h2>
-            <p>使用相同 userId 可更新用户资料。</p>
-          </div>
-        </div>
-        <form id="user-form">
-          <div class="form-grid">
-            ${field('用户 ID', 'userId', 'text', 'ops-engineer', true)}
-            ${field('显示名称', 'displayName', 'text', '工艺工程师', true)}
-            ${field('用户名', 'username', 'text', 'ops.engineer', true)}
-            ${field('邮箱', 'email', 'email', 'ops.engineer@ark-mfg.local', true)}
-            <label class="field">
-              <span>角色</span>
-              <select name="role" required>
-                <option value="OPERATOR">操作员</option>
-                <option value="ADMIN">管理员</option>
-                <option value="DATA_ENGINEER">数据工程师</option>
-                <option value="AUDITOR">审计员</option>
-              </select>
-            </label>
-            ${field('部门', 'department', 'text', '生产运营', true)}
-            <label class="check-field full"><input name="enabled" type="checkbox" checked>启用账号</label>
-          </div>
-          <div class="form-actions"><button class="primary" type="submit">保存用户</button></div>
-        </form>
-      </section>
+      ${renderUserForm()}
     </div>
+  `
+}
+
+function renderUserForm() {
+  const draft = state.userDraft
+  const profile = draft?.frontendProfile || {}
+  const modules = profile.modules || ['overview', 'collection', 'process']
+  return `
+    <section class="panel">
+      <div class="section-title">
+        <div>
+          <h2>${draft ? '编辑前台画像' : '新增/更新用户'}</h2>
+          <p>${draft ? '当前正在编辑该账号登录 frontend 后看到的界面。' : '使用相同 userId 可更新用户资料和前台展示配置。'}</p>
+        </div>
+      </div>
+      <form id="user-form">
+        <div class="form-grid">
+          ${field('用户 ID', 'userId', 'text', 'ops-engineer', true, '', draft?.userId || '', Boolean(draft))}
+          ${field('显示名称', 'displayName', 'text', '工艺工程师', true, '', draft?.displayName || '')}
+          ${field('用户名', 'username', 'text', 'ops.engineer', true, '', draft?.username || '')}
+          ${field('邮箱', 'email', 'email', 'ops.engineer@ark-mfg.local', true, '', draft?.email || '')}
+          ${selectField('角色', 'role', [
+            ['OPERATOR', '操作员'],
+            ['ADMIN', '管理员'],
+            ['DATA_ENGINEER', '数据工程师'],
+            ['AUDITOR', '审计员'],
+          ], draft?.role || 'OPERATOR')}
+          ${field('部门', 'department', 'text', '生产运营', true, '', draft?.department || '')}
+          ${selectField('前台主题', 'frontendTheme', [
+            ['aurora', '智控'],
+            ['graphite', '石墨'],
+          ], profile.theme || 'aurora')}
+          ${selectField('默认首页', 'frontendHomeView', moduleOptions, profile.homeView || 'overview')}
+          <div class="field full">
+            <span>前台可见模块</span>
+            <div class="checkbox-grid">
+              ${moduleOptions.map(([value, label]) => `
+                <label class="check-field">
+                  <input name="frontendModules" type="checkbox" value="${value}" ${modules.includes(value) ? 'checked' : ''}>
+                  ${label}
+                </label>
+              `).join('')}
+            </div>
+          </div>
+          <label class="check-field full"><input name="enabled" type="checkbox" ${draft ? (draft.enabled ? 'checked' : '') : 'checked'}>启用账号</label>
+        </div>
+        <div class="form-actions">
+          ${draft ? '<button type="button" data-action="new-user">清空/新增</button>' : ''}
+          <button class="primary" type="submit">保存用户</button>
+        </div>
+      </form>
+    </section>
   `
 }
 
@@ -405,6 +458,19 @@ function field(label, name, type, placeholder, required, extraClass = '', value 
   `
 }
 
+function selectField(label, name, options, value, extraClass = '') {
+  return `
+    <label class="field ${extraClass}">
+      <span>${escapeHtml(label)}</span>
+      <select name="${escapeHtml(name)}" required>
+        ${options.map(([optionValue, optionLabel]) => `
+          <option value="${escapeHtml(optionValue)}" ${optionValue === value ? 'selected' : ''}>${escapeHtml(optionLabel)}</option>
+        `).join('')}
+      </select>
+    </label>
+  `
+}
+
 function table(headers, rows) {
   return `
     <div class="table-wrap">
@@ -427,6 +493,21 @@ function roleName(role) {
     DATA_ENGINEER: '数据工程师',
     AUDITOR: '审计员',
   }[role] || role
+}
+
+function themeName(theme) {
+  return {
+    aurora: '智控',
+    graphite: '石墨',
+  }[theme] || theme || '-'
+}
+
+function moduleName(moduleId) {
+  return Object.fromEntries(moduleOptions)[moduleId] || moduleId || '-'
+}
+
+function moduleList(modules = []) {
+  return modules.map(moduleName).join(' / ') || '-'
 }
 
 function providerSourceName(source) {

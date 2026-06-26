@@ -12,5 +12,6 @@ public record PlatformUser(
     String department,
     Instant createdAt,
     Instant lastLoginAt,
-    String source
+    String source,
+    FrontendProfile frontendProfile
 ) {}
