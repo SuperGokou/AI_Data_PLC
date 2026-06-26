@@ -244,6 +244,8 @@ sequenceDiagram
 | `GET` | `/api/v1/process-steps` | 工艺/WIP 映射 |
 | `GET` | `/api/v1/points` | AI 数据采集测点定义 |
 | `GET` | `/api/v1/models/providers` | 模型供应商配置状态，不暴露 API Key |
+| `POST` | `/api/v1/models/providers` | 新增或更新用户自定义 API Provider，响应只返回脱敏状态 |
+| `PATCH` | `/api/v1/models/providers/{providerId}/enabled` | 启用或停用用户自定义 API Provider |
 | `GET` | `/api/v1/models/control-policy` | 当前 AI 控制模式和安全策略 |
 | `GET` | `/api/v1/datasets/formats` | 支持的数据集导出格式 |
 | `POST` | `/api/v1/datasets/exports` | 创建数据集导出任务 |
@@ -364,6 +366,7 @@ docker compose up -d --build
 - 数据集导出任务当前已提供合约和队列响应，完整文件生成后续实现。
 - UI 当前是第一版运营控制台基线，使用后端样例数据。
 - AI provider 调用和微调任务编排尚未接入外部 API。
+- 用户新增 API Provider 当前为运行时配置，生产版需要接入数据库和密钥管理服务持久化。
 
 ### 路线图
 
@@ -623,6 +626,8 @@ Default mode is `RECOMMEND_ONLY`.
 | `GET` | `/api/v1/process-steps` | Process/WIP mapping |
 | `GET` | `/api/v1/points` | AI data collection point definitions |
 | `GET` | `/api/v1/models/providers` | Model provider configuration status without exposing API keys |
+| `POST` | `/api/v1/models/providers` | Add or update a user-defined API provider, returning masked status only |
+| `PATCH` | `/api/v1/models/providers/{providerId}/enabled` | Enable or disable a user-defined API provider |
 | `GET` | `/api/v1/models/control-policy` | Current AI control mode and safety policy |
 | `GET` | `/api/v1/datasets/formats` | Supported dataset export formats |
 | `POST` | `/api/v1/datasets/exports` | Create a dataset export job |
@@ -743,6 +748,7 @@ Expected health check:
 - Dataset export jobs currently expose the contract and queue response, not full file generation.
 - The UI is a first operations-console baseline and uses sample backend data.
 - AI provider calls and fine-tuning job orchestration are not yet wired to external APIs.
+- User-added API providers are runtime configuration for now; production should persist them through a database and secret manager.
 
 ### Roadmap
 

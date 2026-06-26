@@ -10,6 +10,8 @@ import {
   Gauge,
   GitBranch,
   LineChart as LineIcon,
+  PlusCircle,
+  Power,
   RefreshCw,
   ShieldCheck,
 } from 'lucide-react'
@@ -73,6 +75,8 @@ type Provider = {
   configured: boolean
   enabled: boolean
   industrialAlgorithmCapable: boolean
+  source: string
+  apiKeyFingerprint: string
 }
 
 type ControlPolicy = {
@@ -81,6 +85,16 @@ type ControlPolicy = {
   requireHumanApproval: boolean
   persistDecisionLog: boolean
   safetyNote: string
+}
+
+type ProviderForm = {
+  providerId: string
+  displayName: string
+  baseUrl: string
+  modelName: string
+  apiKey: string
+  industrialAlgorithmCapable: boolean
+  enabled: boolean
 }
 
 const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
@@ -102,6 +116,16 @@ const trendData = [
   { time: '60m', temperature: 88, ph: 5.2, uptake: 71 },
 ]
 
+const emptyProviderForm: ProviderForm = {
+  providerId: '',
+  displayName: '',
+  baseUrl: '',
+  modelName: '',
+  apiKey: '',
+  industrialAlgorithmCapable: true,
+  enabled: true,
+}
+
 async function fetchJson<T>(path: string, fallback: T): Promise<T> {
   try {
     const response = await fetch(`${apiBase}${path}`)
@@ -110,6 +134,19 @@ async function fetchJson<T>(path: string, fallback: T): Promise<T> {
   } catch {
     return fallback
   }
+}
+
+async function sendJson<T>(path: string, method: string, body: unknown): Promise<T> {
+  const response = await fetch(`${apiBase}${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({ error: '请求失败' }))
+    throw new Error(payload.error || '请求失败')
+  }
+  return response.json()
 }
 
 export default function App() {
@@ -121,6 +158,9 @@ export default function App() {
   const [providers, setProviders] = useState<Provider[]>([])
   const [policy, setPolicy] = useState<ControlPolicy | null>(null)
   const [exportFormat, setExportFormat] = useState('CSV')
+  const [providerForm, setProviderForm] = useState<ProviderForm>(emptyProviderForm)
+  const [providerSubmitting, setProviderSubmitting] = useState(false)
+  const [providerMessage, setProviderMessage] = useState('')
 
   useEffect(() => {
     void refresh()
@@ -142,6 +182,41 @@ export default function App() {
     setSteps(nextSteps)
     setProviders(nextProviders)
     setPolicy(nextPolicy)
+  }
+
+  async function submitProvider(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setProviderSubmitting(true)
+    setProviderMessage('')
+    try {
+      const provider = await sendJson<Provider>('/api/v1/models/providers', 'POST', providerForm)
+      setProviders((current) => [
+        ...current.filter((item) => item.providerId !== provider.providerId),
+        provider,
+      ])
+      setProviderForm(emptyProviderForm)
+      setProviderMessage(`已保存 ${provider.displayName}`)
+    } catch (error) {
+      setProviderMessage(error instanceof Error ? error.message : '保存失败')
+    } finally {
+      setProviderSubmitting(false)
+    }
+  }
+
+  async function toggleProvider(provider: Provider) {
+    setProviderMessage('')
+    try {
+      const updated = await sendJson<Provider>(
+        `/api/v1/models/providers/${provider.providerId}/enabled`,
+        'PATCH',
+        { enabled: !provider.enabled },
+      )
+      setProviders((current) =>
+        current.map((item) => (item.providerId === updated.providerId ? updated : item)),
+      )
+    } catch (error) {
+      setProviderMessage(error instanceof Error ? error.message : '状态更新失败')
+    }
   }
 
   const navigation = useMemo(
@@ -289,6 +364,105 @@ export default function App() {
 
         {activeView === 'models' && (
           <Panel title="模型供应商" icon={<BrainCircuit size={18} />}>
+            <form className="provider-form" onSubmit={submitProvider}>
+              <div className="form-grid">
+                <label>
+                  <span>Provider ID</span>
+                  <input
+                    required
+                    pattern="[a-z0-9][a-z0-9-]{1,48}"
+                    value={providerForm.providerId}
+                    onChange={(event) =>
+                      setProviderForm((current) => ({
+                        ...current,
+                        providerId: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''),
+                      }))
+                    }
+                    placeholder="customer-gateway"
+                  />
+                </label>
+                <label>
+                  <span>显示名称</span>
+                  <input
+                    required
+                    value={providerForm.displayName}
+                    onChange={(event) =>
+                      setProviderForm((current) => ({ ...current, displayName: event.target.value }))
+                    }
+                    placeholder="客户自有模型网关"
+                  />
+                </label>
+                <label>
+                  <span>API Base URL</span>
+                  <input
+                    required
+                    type="url"
+                    value={providerForm.baseUrl}
+                    onChange={(event) =>
+                      setProviderForm((current) => ({ ...current, baseUrl: event.target.value }))
+                    }
+                    placeholder="https://api.example.com/v1"
+                  />
+                </label>
+                <label>
+                  <span>模型名称</span>
+                  <input
+                    required
+                    value={providerForm.modelName}
+                    onChange={(event) =>
+                      setProviderForm((current) => ({ ...current, modelName: event.target.value }))
+                    }
+                    placeholder="industrial-dyeing-v1"
+                  />
+                </label>
+                <label>
+                  <span>API Key</span>
+                  <input
+                    required
+                    type="password"
+                    value={providerForm.apiKey}
+                    onChange={(event) =>
+                      setProviderForm((current) => ({ ...current, apiKey: event.target.value }))
+                    }
+                    placeholder="sk-..."
+                  />
+                </label>
+                <div className="form-switches">
+                  <label className="checkbox-line">
+                    <input
+                      type="checkbox"
+                      checked={providerForm.industrialAlgorithmCapable}
+                      onChange={(event) =>
+                        setProviderForm((current) => ({
+                          ...current,
+                          industrialAlgorithmCapable: event.target.checked,
+                        }))
+                      }
+                    />
+                    <span>工业算法层</span>
+                  </label>
+                  <label className="checkbox-line">
+                    <input
+                      type="checkbox"
+                      checked={providerForm.enabled}
+                      onChange={(event) =>
+                        setProviderForm((current) => ({ ...current, enabled: event.target.checked }))
+                      }
+                    />
+                    <span>保存后启用</span>
+                  </label>
+                </div>
+              </div>
+              <div className="form-actions">
+                <button type="submit" disabled={providerSubmitting}>
+                  <PlusCircle size={16} />
+                  <span>{providerSubmitting ? '保存中' : '保存 API Provider'}</span>
+                </button>
+                <p className="hint">API Key 只提交给后端，列表仅显示脱敏指纹。</p>
+              </div>
+              {providerMessage && <p className="status-message">{providerMessage}</p>}
+            </form>
+
             <div className="provider-grid">
               {providers.map((provider) => (
                 <article key={provider.providerId} className="provider-card">
@@ -296,11 +470,26 @@ export default function App() {
                   <span>{provider.modelName || '未配置模型'}</span>
                   <p>{provider.baseUrl || '待配置 API Base URL'}</p>
                   <div className="badges">
+                    <em className={provider.enabled ? 'ok' : 'muted'}>
+                      {provider.enabled ? '启用中' : '已停用'}
+                    </em>
                     <em className={provider.configured ? 'ok' : 'muted'}>
                       {provider.configured ? '已配置' : '缺少密钥'}
                     </em>
                     {provider.industrialAlgorithmCapable && <em>工业算法层</em>}
+                    {provider.source === 'USER_ADDED' && <em>用户添加</em>}
                   </div>
+                  {provider.apiKeyFingerprint && (
+                    <small className="key-fingerprint">{provider.apiKeyFingerprint}</small>
+                  )}
+                  {provider.source === 'USER_ADDED' && (
+                    <div className="card-actions">
+                      <button type="button" onClick={() => toggleProvider(provider)}>
+                        <Power size={14} />
+                        <span>{provider.enabled ? '停用' : '启用'}</span>
+                      </button>
+                    </div>
+                  )}
                 </article>
               ))}
             </div>

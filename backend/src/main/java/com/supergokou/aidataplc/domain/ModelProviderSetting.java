@@ -7,5 +7,7 @@ public record ModelProviderSetting(
     String modelName,
     boolean configured,
     boolean enabled,
-    boolean industrialAlgorithmCapable
+    boolean industrialAlgorithmCapable,
+    String source,
+    String apiKeyFingerprint
 ) {}

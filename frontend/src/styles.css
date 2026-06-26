@@ -253,6 +253,102 @@ th {
   gap: 12px;
 }
 
+.provider-form {
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid #dbe3e7;
+  border-radius: 8px;
+  background: #f8fbfb;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.form-grid label {
+  display: grid;
+  gap: 6px;
+}
+
+.form-grid label span {
+  color: #46565e;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.form-grid input {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid #cfdbe0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #263238;
+}
+
+.form-grid input:focus {
+  outline: 2px solid #a9d7df;
+  border-color: #1f7a8c;
+}
+
+.form-switches {
+  display: grid;
+  align-content: center;
+  gap: 8px;
+}
+
+.checkbox-line {
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+}
+
+.checkbox-line input {
+  width: 16px;
+  min-height: 16px;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.form-actions button,
+.card-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #ffffff;
+  background: #1f7a8c;
+}
+
+.form-actions button {
+  padding: 0 13px;
+}
+
+.form-actions button:disabled {
+  cursor: wait;
+  background: #7f99a2;
+}
+
+.status-message {
+  margin-top: 10px;
+  color: #1f7a8c;
+  font-weight: 700;
+}
+
 .step-card span {
   display: inline-grid;
   place-items: center;
@@ -310,6 +406,23 @@ th {
   color: #1c6b54;
 }
 
+.key-fingerprint {
+  display: block;
+  margin-top: 10px;
+  color: #61717a;
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+
+.card-actions {
+  margin-top: 12px;
+}
+
+.card-actions button {
+  padding: 0 10px;
+  color: #263238;
+  background: #edf3f5;
+}
+
 .export-tools {
   display: flex;
   flex-wrap: wrap;
@@ -359,7 +472,8 @@ th {
 
   .metric-grid,
   .split,
-  .pipeline {
+  .pipeline,
+  .form-grid {
     grid-template-columns: 1fr;
   }
 }
