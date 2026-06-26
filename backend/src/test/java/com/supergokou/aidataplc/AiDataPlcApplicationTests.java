@@ -73,6 +73,38 @@ class AiDataPlcApplicationTests {
   }
 
   @Test
+  void allowsBackendOverrideForBuiltInProviderSecret() {
+    ModelProviderSetting provider = modelProviderService.upsertProvider(
+        new ModelProviderUpsertRequest(
+            "glm",
+            "GLM",
+            "https://open.bigmodel.cn/api/paas/v4",
+            "glm-4-plus",
+            "sk-glm-runtime-secret",
+            true,
+            true));
+
+    assertThat(provider.providerId()).isEqualTo("glm");
+    assertThat(provider.configured()).isTrue();
+    assertThat(provider.enabled()).isTrue();
+    assertThat(provider.source()).isEqualTo("BACKEND_OVERRIDE");
+    assertThat(provider.apiKeyFingerprint()).startsWith("sha256:");
+    assertThat(provider.toString()).doesNotContain("sk-glm-runtime-secret");
+
+    ModelProviderSetting disabled = modelProviderService.setProviderEnabled("glm", false);
+    assertThat(disabled.enabled()).isFalse();
+    assertThat(modelProviderService.providers())
+        .filteredOn(item -> item.providerId().equals("glm"))
+        .singleElement()
+        .extracting(ModelProviderSetting::source)
+        .isEqualTo("BACKEND_OVERRIDE");
+
+    assertThatThrownBy(() -> modelProviderService.deleteProvider("glm"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Only user-added providers");
+  }
+
+  @Test
   void managesRuntimeUsersAndProtectsBootstrapAdmin() {
     PlatformUser user = userManagementService.upsertUser(
         new UserUpsertRequest(

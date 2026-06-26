@@ -4,6 +4,7 @@ const state = {
   overview: null,
   users: [],
   providers: [],
+  providerDraft: null,
   formats: [],
   points: [],
   steps: [],
@@ -70,6 +71,16 @@ app.addEventListener('click', async (event) => {
         body: JSON.stringify({ enabled: enabled !== 'true' }),
       })
       showStatus('模型供应商状态已更新')
+    }
+    if (action === 'edit-provider') {
+      state.providerDraft = state.providers.find((provider) => provider.providerId === id) || null
+      render()
+      return
+    }
+    if (action === 'new-provider') {
+      state.providerDraft = null
+      render()
+      return
     }
     if (action === 'delete-provider') {
       await api(`/api/v1/models/providers/${encodeURIComponent(id)}`, { method: 'DELETE' })
@@ -155,6 +166,7 @@ async function saveProvider(form) {
   }
   try {
     await api('/api/v1/models/providers', { method: 'POST', body: JSON.stringify(payload) })
+    state.providerDraft = null
     form.reset()
     form.elements.enabled.checked = true
     form.elements.industrialAlgorithmCapable.checked = true
@@ -282,6 +294,8 @@ function renderUsers() {
 }
 
 function renderModels() {
+  const draft = state.providerDraft
+  const editing = Boolean(draft)
   const rows = state.providers.map((provider) => `
     <tr>
       <td><strong>${escapeHtml(provider.displayName)}</strong><br><span class="muted">${escapeHtml(provider.providerId)}</span></td>
@@ -290,10 +304,14 @@ function renderModels() {
       <td>${tag(provider.enabled ? '启用' : '停用', provider.enabled ? 'ok' : 'danger')}</td>
       <td>${tag(provider.industrialAlgorithmCapable ? '工业算法' : '通用模型', provider.industrialAlgorithmCapable ? 'ok' : '')}</td>
       <td>${escapeHtml(provider.apiKeyFingerprint || '未配置')}</td>
-      <td>${tag(provider.source === 'ENVIRONMENT' ? '环境变量' : '后台新增', provider.source === 'ENVIRONMENT' ? '' : 'warn')}</td>
+      <td>${tag(providerSourceName(provider.source), provider.source === 'USER_ADDED' ? 'warn' : provider.source === 'BACKEND_OVERRIDE' ? 'ok' : '')}</td>
       <td>
         <div class="row-actions">
-          ${provider.source === 'USER_ADDED' ? `<button type="button" data-action="toggle-provider" data-id="${escapeHtml(provider.providerId)}" data-enabled="${provider.enabled}">${provider.enabled ? '停用' : '启用'}</button><button type="button" class="danger" data-action="delete-provider" data-id="${escapeHtml(provider.providerId)}">删除</button>` : '<button type="button" class="muted" disabled>环境管理</button>'}
+          <button type="button" data-action="edit-provider" data-id="${escapeHtml(provider.providerId)}">编辑密钥</button>
+          <button type="button" data-action="toggle-provider" data-id="${escapeHtml(provider.providerId)}" data-enabled="${provider.enabled}">
+            ${provider.enabled ? '停用' : '启用'}
+          </button>
+          ${provider.source === 'USER_ADDED' ? `<button type="button" class="danger" data-action="delete-provider" data-id="${escapeHtml(provider.providerId)}">删除</button>` : ''}
         </div>
       </td>
     </tr>
@@ -312,21 +330,24 @@ function renderModels() {
       <section class="panel">
         <div class="section-title">
           <div>
-            <h2>新增 API Provider</h2>
-            <p>密钥不会在列表中明文显示，只显示 SHA-256 指纹。</p>
+            <h2>${editing ? '编辑模型密钥' : '新增 API Provider'}</h2>
+            <p>${editing ? '已载入当前 Provider 参数；旧密钥不会回显，请输入新 API Key 后保存。' : '密钥不会在列表中明文显示，只显示 SHA-256 指纹。'}</p>
           </div>
         </div>
         <form id="provider-form">
           <div class="form-grid">
-            ${field('Provider ID', 'providerId', 'text', 'deepseek-pro', true)}
-            ${field('显示名称', 'displayName', 'text', 'DeepSeek Pro', true)}
-            ${field('Base URL', 'baseUrl', 'url', 'https://api.deepseek.com', true, 'full')}
-            ${field('模型名称', 'modelName', 'text', 'deepseek-reasoner', true)}
-            ${field('API Key', 'apiKey', 'password', 'sk-...', true)}
-            <label class="check-field full"><input name="industrialAlgorithmCapable" type="checkbox" checked>支持工业算法层</label>
-            <label class="check-field full"><input name="enabled" type="checkbox" checked>启用供应商</label>
+            ${field('Provider ID', 'providerId', 'text', 'deepseek-pro', true, '', draft?.providerId || '', editing)}
+            ${field('显示名称', 'displayName', 'text', 'DeepSeek Pro', true, '', draft?.displayName || '')}
+            ${field('Base URL', 'baseUrl', 'url', 'https://api.deepseek.com', true, 'full', draft?.baseUrl || '')}
+            ${field('模型名称', 'modelName', 'text', 'deepseek-reasoner', true, '', draft?.modelName || '')}
+            ${field('API Key', 'apiKey', 'password', editing ? '输入新 API Key（不会回显旧密钥）' : 'sk-...', true)}
+            <label class="check-field full"><input name="industrialAlgorithmCapable" type="checkbox" ${draft ? (draft.industrialAlgorithmCapable ? 'checked' : '') : 'checked'}>支持工业算法层</label>
+            <label class="check-field full"><input name="enabled" type="checkbox" ${draft ? (draft.enabled ? 'checked' : '') : 'checked'}>启用供应商</label>
           </div>
-          <div class="form-actions"><button class="primary" type="submit">保存 Provider</button></div>
+          <div class="form-actions">
+            ${editing ? '<button type="button" data-action="new-provider">清空/新增</button>' : ''}
+            <button class="primary" type="submit">${editing ? '保存密钥' : '保存 Provider'}</button>
+          </div>
         </form>
       </section>
     </div>
@@ -374,11 +395,12 @@ function stat(label, value, hint) {
   return `<article class="stat"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value ?? 0))}</strong><span>${escapeHtml(hint)}</span></article>`
 }
 
-function field(label, name, type, placeholder, required, extraClass = '') {
+function field(label, name, type, placeholder, required, extraClass = '', value = '', readOnly = false) {
+  const valueAttribute = value === '' ? '' : ` value="${escapeHtml(value)}"`
   return `
     <label class="field ${extraClass}">
       <span>${escapeHtml(label)}</span>
-      <input name="${escapeHtml(name)}" type="${escapeHtml(type)}" placeholder="${escapeHtml(placeholder)}" ${required ? 'required' : ''}>
+      <input name="${escapeHtml(name)}" type="${escapeHtml(type)}" placeholder="${escapeHtml(placeholder)}"${valueAttribute} ${required ? 'required' : ''} ${readOnly ? 'readonly' : ''}>
     </label>
   `
 }
@@ -405,6 +427,14 @@ function roleName(role) {
     DATA_ENGINEER: '数据工程师',
     AUDITOR: '审计员',
   }[role] || role
+}
+
+function providerSourceName(source) {
+  return {
+    ENVIRONMENT: '环境变量',
+    BACKEND_OVERRIDE: '后台配置',
+    USER_ADDED: '后台新增',
+  }[source] || source
 }
 
 function showStatus(message, isError = false) {

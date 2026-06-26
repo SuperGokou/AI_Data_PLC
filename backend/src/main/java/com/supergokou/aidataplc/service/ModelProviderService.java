@@ -20,6 +20,7 @@ import org.springframework.util.StringUtils;
 public class ModelProviderService {
 
   private static final String SOURCE_ENVIRONMENT = "ENVIRONMENT";
+  private static final String SOURCE_BACKEND_OVERRIDE = "BACKEND_OVERRIDE";
   private static final String SOURCE_USER_ADDED = "USER_ADDED";
 
   private final PlcProperties properties;
@@ -32,6 +33,11 @@ public class ModelProviderService {
   public List<ModelProviderSetting> providers() {
     List<ModelProviderSetting> results = new ArrayList<>();
     properties.getProviders().forEach((providerId, provider) -> {
+      RuntimeModelProvider runtimeProvider = runtimeProviders.get(providerId.toLowerCase(Locale.ROOT));
+      if (runtimeProvider != null) {
+        results.add(runtimeProvider.toSetting());
+        return;
+      }
       boolean configured = StringUtils.hasText(provider.getApiKey())
           && StringUtils.hasText(provider.getBaseUrl())
           && StringUtils.hasText(provider.getModelName());
@@ -47,6 +53,7 @@ public class ModelProviderService {
           fingerprint(provider.getApiKey())));
     });
     runtimeProviders.values().stream()
+        .filter(provider -> !properties.getProviders().containsKey(provider.providerId()))
         .map(RuntimeModelProvider::toSetting)
         .sorted((left, right) -> left.providerId().compareTo(right.providerId()))
         .forEach(results::add);
@@ -55,9 +62,7 @@ public class ModelProviderService {
 
   public ModelProviderSetting upsertProvider(ModelProviderUpsertRequest request) {
     String providerId = request.providerId().toLowerCase(Locale.ROOT);
-    if (properties.getProviders().containsKey(providerId)) {
-      throw new IllegalArgumentException("Built-in provider ids are managed by environment variables");
-    }
+    boolean builtInProvider = properties.getProviders().containsKey(providerId);
     RuntimeModelProvider provider = new RuntimeModelProvider(
         providerId,
         request.displayName().trim(),
@@ -65,15 +70,20 @@ public class ModelProviderService {
         request.modelName().trim(),
         request.apiKey(),
         request.industrialAlgorithmCapable(),
-        request.enabled() == null || request.enabled());
+        request.enabled() == null || request.enabled(),
+        builtInProvider ? SOURCE_BACKEND_OVERRIDE : SOURCE_USER_ADDED);
     runtimeProviders.put(providerId, provider);
     return provider.toSetting();
   }
 
   public ModelProviderSetting setProviderEnabled(String providerId, boolean enabled) {
-    RuntimeModelProvider provider = runtimeProviders.get(providerId.toLowerCase(Locale.ROOT));
+    String normalizedProviderId = providerId.toLowerCase(Locale.ROOT);
+    RuntimeModelProvider provider = runtimeProviders.get(normalizedProviderId);
+    if (provider == null && properties.getProviders().containsKey(normalizedProviderId)) {
+      provider = fromBuiltInProvider(normalizedProviderId, properties.getProviders().get(normalizedProviderId));
+    }
     if (provider == null) {
-      throw new IllegalArgumentException("Only user-added providers can be enabled or disabled here");
+      throw new IllegalArgumentException("Provider not found");
     }
     RuntimeModelProvider updated = provider.withEnabled(enabled);
     runtimeProviders.put(updated.providerId(), updated);
@@ -81,10 +91,12 @@ public class ModelProviderService {
   }
 
   public void deleteProvider(String providerId) {
-    RuntimeModelProvider removed = runtimeProviders.remove(providerId.toLowerCase(Locale.ROOT));
-    if (removed == null) {
+    String normalizedProviderId = providerId.toLowerCase(Locale.ROOT);
+    RuntimeModelProvider provider = runtimeProviders.get(normalizedProviderId);
+    if (provider == null || !SOURCE_USER_ADDED.equals(provider.source())) {
       throw new IllegalArgumentException("Only user-added providers can be deleted here");
     }
+    runtimeProviders.remove(normalizedProviderId);
   }
 
   public ControlPolicy controlPolicy() {
@@ -113,6 +125,23 @@ public class ModelProviderService {
     }
   }
 
+  private static RuntimeModelProvider fromBuiltInProvider(
+      String providerId,
+      PlcProperties.ProviderProperties provider) {
+    boolean configured = StringUtils.hasText(provider.getApiKey())
+        && StringUtils.hasText(provider.getBaseUrl())
+        && StringUtils.hasText(provider.getModelName());
+    return new RuntimeModelProvider(
+        providerId,
+        provider.getDisplayName(),
+        provider.getBaseUrl(),
+        provider.getModelName(),
+        provider.getApiKey(),
+        provider.isIndustrialAlgorithmCapable(),
+        configured,
+        SOURCE_BACKEND_OVERRIDE);
+  }
+
   private record RuntimeModelProvider(
       String providerId,
       String displayName,
@@ -120,7 +149,8 @@ public class ModelProviderService {
       String modelName,
       String apiKey,
       boolean industrialAlgorithmCapable,
-      boolean enabled
+      boolean enabled,
+      String source
   ) {
     ModelProviderSetting toSetting() {
       boolean configured = StringUtils.hasText(apiKey)
@@ -134,7 +164,7 @@ public class ModelProviderService {
           configured,
           enabled,
           industrialAlgorithmCapable,
-          SOURCE_USER_ADDED,
+          source,
           fingerprint(apiKey));
     }
 
@@ -146,7 +176,8 @@ public class ModelProviderService {
           modelName,
           apiKey,
           industrialAlgorithmCapable,
-          nextEnabled);
+          nextEnabled,
+          source);
     }
   }
 }
