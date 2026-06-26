@@ -1,4 +1,4 @@
-import type { FormEvent, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import {
   Activity,
@@ -7,14 +7,11 @@ import {
   FileSpreadsheet,
   Gauge,
   GitBranch,
-  LogIn,
-  LogOut,
   RefreshCw,
   Search,
   ServerCog,
   ShieldCheck,
   SlidersHorizontal,
-  UserRound,
 } from 'lucide-react'
 import {
   Bar,
@@ -71,33 +68,6 @@ type Provider = {
   apiKeyFingerprint: string
 }
 
-type FrontendProfile = {
-  theme: ThemeId
-  homeView: string
-  modules: string[]
-  dashboardTitle: string
-  focusLabel: string
-}
-
-type PlatformUser = {
-  userId: string
-  displayName: string
-  username: string
-  email: string
-  role: string
-  enabled: boolean
-  department: string
-  lastLoginAt: string | null
-  source: string
-  frontendProfile: FrontendProfile
-}
-
-type FrontendSession = {
-  sessionType: string
-  user: PlatformUser
-  frontendProfile: FrontendProfile
-}
-
 type ThemeId = 'aurora' | 'graphite'
 type StatDatum = { name: string; value: number }
 type FetchResult<T> = { data: T; ok: boolean }
@@ -120,45 +90,10 @@ const themeOptions: Array<{ id: ThemeId; label: string }> = [
 ]
 
 const viewIds = new Set(['overview', 'collection', 'process', 'points', 'data'])
-const sessionStorageKey = 'fangzhou-frontend-session'
-const defaultFrontendProfile: FrontendProfile = {
-  theme: 'aurora',
-  homeView: 'overview',
-  modules: ['overview', 'collection', 'process', 'points', 'data'],
-  dashboardTitle: '工业数据展示看板',
-  focusLabel: '全流程工艺、AI 测点与数据边界',
-}
 
 function initialView() {
   const requestedView = new URLSearchParams(window.location.search).get('view') || ''
   return viewIds.has(requestedView) ? requestedView : 'overview'
-}
-
-function normalizeFrontendProfile(profile?: Partial<FrontendProfile> | null): FrontendProfile {
-  const theme = profile?.theme === 'graphite' ? 'graphite' : 'aurora'
-  const modules = (profile?.modules || defaultFrontendProfile.modules).filter((module) => viewIds.has(module))
-  const normalizedModules = modules.length > 0 ? modules : defaultFrontendProfile.modules
-  const requestedHome = profile?.homeView || defaultFrontendProfile.homeView
-  const homeView = normalizedModules.includes(requestedHome) ? requestedHome : normalizedModules[0]
-  return {
-    theme,
-    homeView,
-    modules: normalizedModules,
-    dashboardTitle: profile?.dashboardTitle || defaultFrontendProfile.dashboardTitle,
-    focusLabel: profile?.focusLabel || defaultFrontendProfile.focusLabel,
-  }
-}
-
-function readSavedSession(): FrontendSession | null {
-  try {
-    const raw = window.localStorage.getItem(sessionStorageKey)
-    if (!raw) return null
-    const session = JSON.parse(raw) as FrontendSession
-    const profile = normalizeFrontendProfile(session.frontendProfile || session.user?.frontendProfile)
-    return { ...session, frontendProfile: profile, user: { ...session.user, frontendProfile: profile } }
-  } catch {
-    return null
-  }
 }
 
 async function fetchJson<T>(path: string, fallback: T): Promise<FetchResult<T>> {
@@ -198,18 +133,10 @@ export default function App() {
   const [points, setPoints] = useState<Point[]>([])
   const [steps, setSteps] = useState<ProcessStep[]>([])
   const [providers, setProviders] = useState<Provider[]>([])
-  const [session, setSession] = useState<FrontendSession | null>(() => readSavedSession())
-  const [loginIdentifier, setLoginIdentifier] = useState('')
-  const [loginError, setLoginError] = useState('')
-  const [isLoggingIn, setIsLoggingIn] = useState(false)
 
   useEffect(() => {
-    if (!session) return
-    const profile = normalizeFrontendProfile(session.frontendProfile)
-    setTheme(profile.theme)
-    setActiveView((currentView) => (profile.modules.includes(currentView) ? currentView : profile.homeView))
     void refresh()
-  }, [session])
+  }, [])
 
   async function refresh() {
     setIsRefreshing(true)
@@ -230,51 +157,6 @@ export default function App() {
     setRefreshError(failed ? '部分展示数据暂不可用，当前保留最近一次可用数据或空状态。' : '')
     setLastUpdated(new Date().toLocaleTimeString('zh-CN', { hour12: false }))
     setIsRefreshing(false)
-  }
-
-  async function login(event?: FormEvent<HTMLFormElement>, quickIdentifier?: string) {
-    event?.preventDefault()
-    const identifier = (quickIdentifier || loginIdentifier).trim()
-    if (!identifier) {
-      setLoginError('请输入用户 ID、用户名或邮箱')
-      return
-    }
-
-    setIsLoggingIn(true)
-    setLoginError('')
-    try {
-      const response = await fetch(`${apiBase}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier }),
-      })
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null)
-        throw new Error(payload?.message || payload?.error || '登录失败')
-      }
-      const payload = (await response.json()) as FrontendSession
-      const profile = normalizeFrontendProfile(payload.frontendProfile || payload.user.frontendProfile)
-      const nextSession = {
-        ...payload,
-        frontendProfile: profile,
-        user: { ...payload.user, frontendProfile: profile },
-      }
-      window.localStorage.setItem(sessionStorageKey, JSON.stringify(nextSession))
-      setSession(nextSession)
-      setLoginIdentifier('')
-    } catch (error) {
-      setLoginError(error instanceof Error ? error.message : '登录失败')
-    } finally {
-      setIsLoggingIn(false)
-    }
-  }
-
-  function logout() {
-    window.localStorage.removeItem(sessionStorageKey)
-    setSession(null)
-    setLoginError('')
-    setLastUpdated('')
-    setRefreshError('')
   }
 
   const normalizedQuery = query.trim().toLowerCase()
@@ -317,22 +199,7 @@ export default function App() {
     [],
   )
 
-  const profile = normalizeFrontendProfile(session?.frontendProfile)
-  const visibleNavigation = navigation.filter((item) => profile.modules.includes(item.id))
-  const activeNav = visibleNavigation.find((item) => item.id === activeView) || visibleNavigation[0] || navigation[0]
-
-  if (!session) {
-    return (
-      <LoginScreen
-        identifier={loginIdentifier}
-        isLoggingIn={isLoggingIn}
-        error={loginError}
-        onIdentifierChange={setLoginIdentifier}
-        onSubmit={login}
-        onQuickLogin={(identifier) => void login(undefined, identifier)}
-      />
-    )
-  }
+  const activeNav = navigation.find((item) => item.id === activeView) || navigation[0]
 
   return (
     <div className="app-shell" data-theme={theme}>
@@ -348,7 +215,7 @@ export default function App() {
         </div>
 
         <nav aria-label="展示导航">
-          {visibleNavigation.map((item) => {
+          {navigation.map((item) => {
             const Icon = item.icon
             return (
               <button
@@ -364,19 +231,6 @@ export default function App() {
             )
           })}
         </nav>
-
-        <div className="account-card">
-          <div className="account-avatar">
-            <UserRound size={18} />
-          </div>
-          <div>
-            <strong>{session.user.displayName}</strong>
-            <span>{roleLabel(session.user.role)} · {session.user.department}</span>
-          </div>
-          <button type="button" onClick={logout} title="退出登录">
-            <LogOut size={16} />
-          </button>
-        </div>
 
         <div className="sidebar-footer">
           <div>
@@ -394,8 +248,7 @@ export default function App() {
         <header className="topbar">
           <div className="title-block">
             <p>{activeNav.label}</p>
-            <h1>{profile.dashboardTitle}</h1>
-            <span className="profile-focus">{profile.focusLabel}</span>
+            <h1>工业数据展示看板</h1>
           </div>
 
           <div className="topbar-controls">
@@ -605,83 +458,6 @@ export default function App() {
           </Panel>
         )}
       </main>
-    </div>
-  )
-}
-
-function roleLabel(role: string) {
-  return (
-    {
-      ADMIN: '管理员',
-      OPERATOR: '操作员',
-      DATA_ENGINEER: '数据工程师',
-      AUDITOR: '审计员',
-    }[role] || role
-  )
-}
-
-function LoginScreen({
-  identifier,
-  isLoggingIn,
-  error,
-  onIdentifierChange,
-  onSubmit,
-  onQuickLogin,
-}: {
-  identifier: string
-  isLoggingIn: boolean
-  error: string
-  onIdentifierChange: (value: string) => void
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void
-  onQuickLogin: (identifier: string) => void
-}) {
-  return (
-    <div className="login-shell">
-      <section className="login-panel">
-        <div className="login-brand">
-          <div className="brand-mark">
-            <Factory size={24} />
-          </div>
-          <div>
-            <strong>方舟智造（上海）</strong>
-            <span>工业数据中台</span>
-          </div>
-        </div>
-
-        <div className="login-copy">
-          <span>Frontend Account</span>
-          <h1>按账号进入不同展示端</h1>
-          <p>登录后会根据 backend 用户画像切换主题、默认首页和可见模块。</p>
-        </div>
-
-        <form className="login-form" onSubmit={onSubmit}>
-          <label>
-            <span>用户 ID / 用户名 / 邮箱</span>
-            <input
-              value={identifier}
-              onChange={(event) => onIdentifierChange(event.target.value)}
-              placeholder="admin 或 ops.lead"
-              autoComplete="username"
-            />
-          </label>
-          {error && <strong className="login-error">{error}</strong>}
-          <button type="submit" disabled={isLoggingIn}>
-            <LogIn size={17} />
-            {isLoggingIn ? '登录中' : '登录展示端'}
-          </button>
-        </form>
-
-        <div className="quick-login">
-          <button type="button" onClick={() => onQuickLogin('admin')} disabled={isLoggingIn}>
-            管理员视角
-            <small>admin</small>
-          </button>
-          <button type="button" onClick={() => onQuickLogin('ops.lead')} disabled={isLoggingIn}>
-            生产运营视角
-            <small>ops.lead</small>
-          </button>
-        </div>
-      </section>
     </div>
   )
 }
