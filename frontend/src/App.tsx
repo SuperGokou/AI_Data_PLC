@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Activity,
   Database,
+  ExternalLink,
   Factory,
   FileSpreadsheet,
   Gauge,
@@ -102,6 +103,14 @@ const demoAccounts: DemoAccount[] = [
     role: 'Guest Demo',
     note: '客户预览与数据展示演示入口',
   },
+]
+
+const backendNavigation = [
+  { id: 'admin-overview', label: '管理总览', href: `${apiBase}/admin/index.html#overview`, icon: Gauge },
+  { id: 'admin-users', label: '用户管理', href: `${apiBase}/admin/index.html#users`, icon: UserRound },
+  { id: 'admin-models', label: '模型/API', href: `${apiBase}/admin/index.html#models`, icon: ServerCog },
+  { id: 'admin-data', label: '数据接口', href: `${apiBase}/admin/index.html#data`, icon: FileSpreadsheet },
+  { id: 'admin-api', label: 'API 索引', href: `${apiBase}/api/v1`, icon: Database },
 ]
 
 const fallbackOverview: Overview = {
@@ -283,6 +292,27 @@ export default function App() {
             )
           })}
         </nav>
+
+        {demoAccount.id === 'admin' && (
+          <section className="backend-nav-panel" aria-label="后台管理导航">
+            <div className="backend-nav-title">
+              <span>后台管理</span>
+              <small>Admin only</small>
+            </div>
+            <div className="backend-nav-list">
+              {backendNavigation.map((item) => {
+                const Icon = item.icon
+                return (
+                  <a key={item.id} href={item.href} target="_blank" rel="noreferrer" title={item.label}>
+                    <Icon size={17} />
+                    <span>{item.label}</span>
+                    <ExternalLink size={14} />
+                  </a>
+                )
+              })}
+            </div>
+          </section>
+        )}
 
         <div className="demo-account-card">
           <div className="demo-account-icon">

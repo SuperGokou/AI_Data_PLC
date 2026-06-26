@@ -6,8 +6,18 @@ const moduleOptions = [
   ['data', '数据说明'],
 ]
 
+const adminViewIds = new Set(['overview', 'users', 'models', 'data'])
+
+function normalizeAdminView(view) {
+  return adminViewIds.has(view) ? view : 'overview'
+}
+
+function initialAdminView() {
+  return normalizeAdminView(window.location.hash.replace(/^#/, ''))
+}
+
 const state = {
-  view: 'overview',
+  view: initialAdminView(),
   theme: localStorage.getItem('ai-data-plc-admin-theme') || 'aurora',
   overview: null,
   users: [],
@@ -36,15 +46,17 @@ const shell = document.querySelector('.admin-shell')
 document.querySelector('#refresh').addEventListener('click', () => loadAll(true))
 document.querySelectorAll('[data-view]').forEach((button) => {
   button.addEventListener('click', () => {
-    state.view = button.dataset.view
-    document.querySelectorAll('[data-view]').forEach((item) => item.classList.toggle('active', item === button))
-    render()
+    setAdminView(button.dataset.view)
   })
 })
 document.querySelectorAll('[data-theme-choice]').forEach((button) => {
   button.addEventListener('click', () => {
     applyTheme(button.dataset.themeChoice)
   })
+})
+
+window.addEventListener('hashchange', () => {
+  setAdminView(window.location.hash.replace(/^#/, ''), false)
 })
 
 app.addEventListener('submit', async (event) => {
@@ -200,8 +212,19 @@ async function saveProvider(form) {
   }
 }
 
+function setAdminView(view, syncHash = true) {
+  state.view = normalizeAdminView(view)
+  if (syncHash && window.location.hash !== `#${state.view}`) {
+    window.history.replaceState(null, '', `#${state.view}`)
+  }
+  render()
+}
+
 function render() {
   applyTheme(state.theme)
+  document.querySelectorAll('[data-view]').forEach((item) => {
+    item.classList.toggle('active', item.dataset.view === state.view)
+  })
   const [nextKicker, nextTitle] = views[state.view]
   kicker.textContent = nextKicker
   title.textContent = nextTitle
