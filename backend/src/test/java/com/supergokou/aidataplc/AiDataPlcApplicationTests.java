@@ -7,6 +7,7 @@ import com.supergokou.aidataplc.domain.ModelProviderSetting;
 import com.supergokou.aidataplc.dto.ModelProviderUpsertRequest;
 import com.supergokou.aidataplc.service.DatasetService;
 import com.supergokou.aidataplc.service.ModelProviderService;
+import com.supergokou.aidataplc.service.SampleDataService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -20,11 +21,21 @@ class AiDataPlcApplicationTests {
   @Autowired
   private ModelProviderService modelProviderService;
 
+  @Autowired
+  private SampleDataService sampleDataService;
+
   @Test
   void exposesAllRequiredDatasetFormats() {
     assertThat(datasetService.supportedFormats())
         .containsExactly(DatasetFormat.CSV, DatasetFormat.JSON, DatasetFormat.EXCEL,
             DatasetFormat.PARQUET, DatasetFormat.REST_API, DatasetFormat.DB_VIEW);
+  }
+
+  @Test
+  void loadsOnlySpreadsheetBackedOperationalData() {
+    assertThat(sampleDataService.points()).hasSize(40);
+    assertThat(sampleDataService.processSteps()).hasSize(35);
+    assertThat(sampleDataService.batches()).isEmpty();
   }
 
   @Test

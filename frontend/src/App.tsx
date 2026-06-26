@@ -9,23 +9,12 @@ import {
   FlaskConical,
   Gauge,
   GitBranch,
-  LineChart as LineIcon,
   PlusCircle,
   Power,
   RefreshCw,
   ShieldCheck,
   Trash2,
 } from 'lucide-react'
-import {
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 
 type Overview = {
   activeBatches: number
@@ -101,21 +90,13 @@ type ProviderForm = {
 const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
 
 const fallbackOverview: Overview = {
-  activeBatches: 3,
-  configuredPoints: 16,
-  onlineDevices: 8,
-  activeAlerts: 2,
+  activeBatches: 0,
+  configuredPoints: 0,
+  onlineDevices: 0,
+  activeAlerts: 0,
   realtimeDelaySeconds: 5,
   aiControlMode: 'RECOMMEND_ONLY',
 }
-
-const trendData = [
-  { time: '00m', temperature: 30, ph: 5.8, uptake: 12 },
-  { time: '15m', temperature: 48, ph: 5.6, uptake: 28 },
-  { time: '30m', temperature: 68, ph: 5.4, uptake: 43 },
-  { time: '45m', temperature: 82, ph: 5.3, uptake: 58 },
-  { time: '60m', temperature: 88, ph: 5.2, uptake: 71 },
-]
 
 const emptyProviderForm: ProviderForm = {
   providerId: '',
@@ -299,21 +280,8 @@ export default function App() {
               <Metric label="活跃告警" value={overview.activeAlerts} tone="red" />
             </section>
             <section className="split">
-              <Panel title="染色曲线" icon={<LineIcon size={18} />}>
-                <div className="chart-wrap">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={trendData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="time" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Line dataKey="temperature" name="温度" stroke="#1f7a8c" strokeWidth={2} />
-                      <Line dataKey="ph" name="pH" stroke="#8a5a44" strokeWidth={2} />
-                      <Line dataKey="uptake" name="上染率" stroke="#6f8f3d" strokeWidth={2} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
+              <Panel title="实时曲线数据" icon={<Database size={18} />}>
+                <EmptyState message="原始表格未提供温度、pH、上染率的时序曲线记录，暂不展示模拟曲线。" />
               </Panel>
               <Panel title="AI反控策略" icon={<ShieldCheck size={18} />}>
                 <PolicyCard policy={policy} />
@@ -345,6 +313,7 @@ export default function App() {
                 `${batch.completionPct}%`,
                 batch.datasetReady ? '可导出' : '处理中',
               ])}
+              emptyMessage="原始表格未提供生产批次实时状态表，暂不展示模拟批次。"
             />
           </Panel>
         )}
@@ -537,10 +506,7 @@ export default function App() {
 
         {activeView === 'alerts' && (
           <Panel title="异常告警" icon={<AlertTriangle size={18} />}>
-            <div className="alert-list">
-              <div><strong>JET-03</strong><span>升温速率偏离标准曲线 0.8C/min</span></div>
-              <div><strong>JET-05</strong><span>皂洗电导率超过终点阈值</span></div>
-            </div>
+            <EmptyState message="原始表格未提供在线告警事件，暂不展示模拟告警。" />
           </Panel>
         )}
       </main>
@@ -580,7 +546,19 @@ function PolicyCard({ policy }: { policy: ControlPolicy | null }) {
   )
 }
 
-function DataTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
+function EmptyState({ message }: { message: string }) {
+  return <div className="empty-state">{message}</div>
+}
+
+function DataTable({
+  headers,
+  rows,
+  emptyMessage = '暂无数据',
+}: {
+  headers: string[]
+  rows: string[][]
+  emptyMessage?: string
+}) {
   return (
     <div className="table-wrap">
       <table>
@@ -588,11 +566,17 @@ function DataTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
           <tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr>
         </thead>
         <tbody>
-          {rows.map((row, rowIndex) => (
-            <tr key={rowIndex}>
-              {row.map((cell, cellIndex) => <td key={`${rowIndex}-${cellIndex}`}>{cell}</td>)}
+          {rows.length === 0 ? (
+            <tr>
+              <td className="empty-cell" colSpan={headers.length}>{emptyMessage}</td>
             </tr>
-          ))}
+          ) : (
+            rows.map((row, rowIndex) => (
+              <tr key={rowIndex}>
+                {row.map((cell, cellIndex) => <td key={`${rowIndex}-${cellIndex}`}>{cell}</td>)}
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
     </div>

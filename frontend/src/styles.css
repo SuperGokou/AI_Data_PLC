@@ -451,6 +451,19 @@ th {
   background: #1f7a8c;
 }
 
+.empty-state,
+.empty-cell {
+  padding: 18px;
+  color: #5f737c;
+  background: #f6fafb;
+  border: 1px dashed #cbd9de;
+  border-radius: 6px;
+}
+
+.empty-cell {
+  text-align: center;
+}
+
 .alert-list {
   display: grid;
   gap: 10px;

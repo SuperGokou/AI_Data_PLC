@@ -27,5 +27,7 @@ pnpm-debug.log*
 
 # Runtime data
 data/
+!backend/src/main/resources/data/
+!backend/src/main/resources/data/**
 logs/
 exports/

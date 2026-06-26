@@ -24,8 +24,8 @@ public class DashboardController {
     return new DashboardOverview(
         sampleDataService.batches().size(),
         sampleDataService.points().size(),
-        8,
-        2,
+        0,
+        0,
         properties.getRealtimeDelaySeconds(),
         properties.getAiControlMode().name());
   }
