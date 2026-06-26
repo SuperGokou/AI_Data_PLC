@@ -1,8 +1,9 @@
-<h1 align="center">AI Data PLC</h1>
+<h1 align="center">方舟智造工业数据中台</h1>
 
 <p align="center">
-  <strong>面向纺织染整 AI 的工业数据中间平台</strong><br/>
-  Industrial Data Middleware for Textile Dyeing AI
+  <strong>Fangzhou Industrial Data Hub</strong><br/>
+  面向纺织染整 AI 的数据采集、治理与模型管理平台<br/>
+  Data Acquisition, Governance, and Model Operations Platform for Textile Dyeing AI
 </p>
 
 <p align="center">
@@ -45,7 +46,7 @@
 
 ### 概览
 
-AI Data PLC 是一个面向纺织染整场景的工业数据中间平台。平台位于 PLC、ERP、光谱仪、能源模块等工业数据源与 AI 算法层之间，负责完成数据采集、清洗、批次对齐、工艺/WIP 映射、时序与业务数据存储、标准数据集导出，以及 AI 控制建议的安全闸门。
+方舟智造工业数据中台是一个面向纺织染整场景的工业数据采集、治理与 AI 模型管理平台。平台位于 PLC、ERP、光谱仪、能源模块等工业数据源与 AI 算法层之间，负责完成数据采集、清洗、批次对齐、工艺/WIP 映射、时序与业务数据存储、标准数据集导出，以及 AI 控制建议的安全闸门。
 
 本项目企业名为 **方舟智造（上海）**。
 
@@ -168,7 +169,7 @@ AI_Data_PLC/
 
 ```text
 PLC / ERP / spectrum / energy data
-        -> AI Data PLC
+        -> 方舟智造工业数据中台
         -> cleaning, alignment, WIP mapping, storage, export
         -> standardized datasets
         -> AI training, simulation, process analysis, and control recommendations
@@ -183,7 +184,7 @@ flowchart LR
         Energy["Energy modules"]
     end
 
-    subgraph Middleware["AI Data PLC"]
+    subgraph Middleware["方舟智造工业数据中台"]
         Ingest["MQTT / Kafka / adapters"]
         Governance["Clean, align, enrich"]
         WIP["Batch + WIP mapping"]
@@ -392,7 +393,7 @@ docker compose up -d --build
 
 ```mermaid
 timeline
-    title AI Data PLC Roadmap
+    title 方舟智造工业数据中台 Roadmap
     section v0.1 Baseline
         Full-stack skeleton : Spring Boot + React + Docker Compose
         Domain contract : batches, process steps, points, datasets, providers
@@ -440,7 +441,7 @@ timeline
 
 ### Overview
 
-AI Data PLC is an industrial data middleware platform for textile dyeing production. It sits between industrial sources such as PLCs, ERP, spectrum devices, and energy modules, and the AI algorithm layer. It handles data collection, cleaning, batch alignment, process and WIP mapping, time-series and business storage, standardized dataset export, and the safety gate for AI control recommendations.
+Fangzhou Industrial Data Hub is a data acquisition, governance, and AI model operations platform for textile dyeing production. It sits between industrial sources such as PLCs, ERP, spectrum devices, and energy modules, and the AI algorithm layer. It handles data collection, cleaning, batch alignment, process and WIP mapping, time-series and business storage, standardized dataset export, and the safety gate for AI control recommendations.
 
 The enterprise name for this project is **Fangzhou Intelligent Manufacturing (Shanghai)**, shown in Chinese as **方舟智造（上海）**.
 
@@ -563,7 +564,7 @@ AI_Data_PLC/
 
 ```text
 PLC / ERP / spectrum / energy data
-        -> AI Data PLC
+        -> Fangzhou Industrial Data Hub
         -> cleaning, alignment, WIP mapping, storage, export
         -> standardized datasets
         -> AI training, simulation, process analysis, and control recommendations
@@ -578,7 +579,7 @@ flowchart LR
         Energy["Energy modules"]
     end
 
-    subgraph Middleware["AI Data PLC"]
+    subgraph Middleware["Fangzhou Industrial Data Hub"]
         Ingest["MQTT / Kafka / adapters"]
         Governance["Clean, align, enrich"]
         WIP["Batch + WIP mapping"]
@@ -787,7 +788,7 @@ Expected health check:
 
 ```mermaid
 timeline
-    title AI Data PLC Roadmap
+    title Fangzhou Industrial Data Hub Roadmap
     section v0.1 Baseline
         Full-stack skeleton : Spring Boot + React + Docker Compose
         Domain contract : batches, process steps, points, datasets, providers
