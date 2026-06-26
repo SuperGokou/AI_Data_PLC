@@ -22,6 +22,8 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Trash2,
+  UserPlus,
+  Users,
 } from 'lucide-react'
 import {
   Bar,
@@ -107,6 +109,31 @@ type ProviderForm = {
   enabled: boolean
 }
 
+type PlatformUserRole = 'ADMIN' | 'OPERATOR' | 'DATA_ENGINEER' | 'AUDITOR'
+
+type PlatformUser = {
+  userId: string
+  displayName: string
+  username: string
+  email: string
+  role: PlatformUserRole
+  enabled: boolean
+  department: string
+  createdAt: string
+  lastLoginAt: string | null
+  source: string
+}
+
+type UserForm = {
+  userId: string
+  displayName: string
+  username: string
+  email: string
+  role: PlatformUserRole
+  department: string
+  enabled: boolean
+}
+
 type DatasetFormat = 'CSV' | 'JSON' | 'EXCEL' | 'PARQUET' | 'REST_API' | 'DB_VIEW'
 type ThemeId = 'industrial' | 'aurora' | 'graphite'
 type StatDatum = { name: string; value: number }
@@ -135,11 +162,45 @@ const emptyProviderForm: ProviderForm = {
   enabled: true,
 }
 
+const emptyUserForm: UserForm = {
+  userId: '',
+  displayName: '',
+  username: '',
+  email: '',
+  role: 'OPERATOR',
+  department: '',
+  enabled: true,
+}
+
 const themeOptions: Array<{ id: ThemeId; label: string }> = [
   { id: 'industrial', label: '工业' },
   { id: 'aurora', label: '智控' },
   { id: 'graphite', label: '石墨' },
 ]
+
+const roleOptions: Array<{ id: PlatformUserRole; label: string }> = [
+  { id: 'ADMIN', label: '管理员' },
+  { id: 'OPERATOR', label: '生产操作' },
+  { id: 'DATA_ENGINEER', label: '数据工程' },
+  { id: 'AUDITOR', label: '审计只读' },
+]
+
+const viewIds = new Set([
+  'overview',
+  'collection',
+  'batches',
+  'process',
+  'points',
+  'models',
+  'users',
+  'datasets',
+  'alerts',
+])
+
+function initialView() {
+  const requestedView = new URLSearchParams(window.location.search).get('view') || ''
+  return viewIds.has(requestedView) ? requestedView : 'overview'
+}
 
 async function fetchJson<T>(path: string, fallback: T): Promise<FetchResult<T>> {
   try {
@@ -181,7 +242,7 @@ function matchesQuery(values: Array<string | number | boolean>, query: string) {
 }
 
 export default function App() {
-  const [activeView, setActiveView] = useState('overview')
+  const [activeView, setActiveView] = useState(initialView)
   const [theme, setTheme] = useState<ThemeId>('industrial')
   const [query, setQuery] = useState('')
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -192,12 +253,16 @@ export default function App() {
   const [points, setPoints] = useState<Point[]>([])
   const [steps, setSteps] = useState<ProcessStep[]>([])
   const [providers, setProviders] = useState<Provider[]>([])
+  const [users, setUsers] = useState<PlatformUser[]>([])
   const [policy, setPolicy] = useState<ControlPolicy | null>(null)
   const [datasetFormats, setDatasetFormats] = useState<DatasetFormat[]>(datasetFallback)
   const [exportFormat, setExportFormat] = useState<DatasetFormat>('CSV')
   const [providerForm, setProviderForm] = useState<ProviderForm>(emptyProviderForm)
   const [providerSubmitting, setProviderSubmitting] = useState(false)
   const [providerMessage, setProviderMessage] = useState('')
+  const [userForm, setUserForm] = useState<UserForm>(emptyUserForm)
+  const [userSubmitting, setUserSubmitting] = useState(false)
+  const [userMessage, setUserMessage] = useState('')
 
   useEffect(() => {
     void refresh()
@@ -206,13 +271,22 @@ export default function App() {
   async function refresh() {
     setIsRefreshing(true)
     setRefreshError('')
-    const [overviewResult, batchesResult, pointsResult, stepsResult, providersResult, policyResult, formatsResult] =
-      await Promise.all([
+    const [
+      overviewResult,
+      batchesResult,
+      pointsResult,
+      stepsResult,
+      providersResult,
+      usersResult,
+      policyResult,
+      formatsResult,
+    ] = await Promise.all([
         fetchJson('/api/v1/overview', fallbackOverview),
         fetchJson<Batch[]>('/api/v1/batches', []),
         fetchJson<Point[]>('/api/v1/points', []),
         fetchJson<ProcessStep[]>('/api/v1/process-steps', []),
         fetchJson<Provider[]>('/api/v1/models/providers', []),
+        fetchJson<PlatformUser[]>('/api/v1/users', []),
         fetchJson<ControlPolicy | null>('/api/v1/models/control-policy', null),
         fetchJson<DatasetFormat[]>('/api/v1/datasets/formats', datasetFallback),
       ])
@@ -222,6 +296,7 @@ export default function App() {
     if (pointsResult.ok) setPoints(pointsResult.data)
     if (stepsResult.ok) setSteps(stepsResult.data)
     if (providersResult.ok) setProviders(providersResult.data)
+    if (usersResult.ok) setUsers(usersResult.data)
     if (policyResult.ok) setPolicy(policyResult.data)
     if (formatsResult.ok) {
       setDatasetFormats(formatsResult.data)
@@ -236,6 +311,7 @@ export default function App() {
       pointsResult,
       stepsResult,
       providersResult,
+      usersResult,
       policyResult,
       formatsResult,
     ].some((result) => !result.ok)
@@ -296,6 +372,58 @@ export default function App() {
     }
   }
 
+  async function submitUser(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setUserSubmitting(true)
+    setUserMessage('')
+    try {
+      const user = await sendJson<PlatformUser>('/api/v1/users', 'POST', userForm)
+      setUsers((current) => [
+        ...current.filter((item) => item.userId !== user.userId),
+        user,
+      ].sort((left, right) => left.userId.localeCompare(right.userId)))
+      setUserForm(emptyUserForm)
+      setUserMessage(`已保存 ${user.displayName}`)
+    } catch (error) {
+      setUserMessage(error instanceof Error ? error.message : '保存失败')
+    } finally {
+      setUserSubmitting(false)
+    }
+  }
+
+  async function toggleUser(user: PlatformUser) {
+    setUserMessage('')
+    try {
+      const updated = await sendJson<PlatformUser>(
+        `/api/v1/users/${user.userId}/enabled`,
+        'PATCH',
+        { enabled: !user.enabled },
+      )
+      setUsers((current) =>
+        current.map((item) => (item.userId === updated.userId ? updated : item)),
+      )
+    } catch (error) {
+      setUserMessage(error instanceof Error ? error.message : '状态更新失败')
+    }
+  }
+
+  async function deleteUser(user: PlatformUser) {
+    setUserMessage('')
+    try {
+      const response = await fetch(`${apiBase}/api/v1/users/${user.userId}`, {
+        method: 'DELETE',
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({ error: '删除失败' }))
+        throw new Error(payload.error || '删除失败')
+      }
+      setUsers((current) => current.filter((item) => item.userId !== user.userId))
+      setUserMessage(`已删除 ${user.displayName}`)
+    } catch (error) {
+      setUserMessage(error instanceof Error ? error.message : '删除失败')
+    }
+  }
+
   const normalizedQuery = query.trim().toLowerCase()
   const sourceStats = useMemo(() => countBy(points, (point) => point.source), [points])
   const workshopStats = useMemo(() => countBy(steps, (step) => step.workshop), [steps])
@@ -327,10 +455,21 @@ export default function App() {
       ),
     [normalizedQuery, steps],
   )
+  const filteredUsers = useMemo(
+    () =>
+      users.filter((user) =>
+        matchesQuery(
+          [user.userId, user.displayName, user.username, user.email, user.role, user.department, user.source],
+          normalizedQuery,
+        ),
+      ),
+    [normalizedQuery, users],
+  )
 
   const aiReadyPoints = points.filter((point) => point.requiredForAiDataset).length
   const configuredProviders = providers.filter((provider) => provider.configured && provider.enabled).length
   const sourceCount = sourceStats.length
+  const enabledUsers = users.filter((user) => user.enabled).length
 
   const navigation = useMemo(
     () => [
@@ -340,6 +479,7 @@ export default function App() {
       { id: 'process', label: '工艺流程', icon: GitBranch },
       { id: 'points', label: '测点配置', icon: Database },
       { id: 'models', label: '模型管理', icon: BrainCircuit },
+      { id: 'users', label: '用户管理', icon: Users },
       { id: 'datasets', label: '数据集导出', icon: FlaskConical },
       { id: 'alerts', label: '告警中心', icon: AlertTriangle },
     ],
@@ -746,6 +886,189 @@ export default function App() {
           </div>
         )}
 
+        {activeView === 'users' && (
+          <div className="view-stack">
+            <section className="metric-grid users-metrics">
+              <Metric
+                icon={<Users size={18} />}
+                label="后台用户"
+                value={users.length}
+                caption="系统初始化 + 管理员添加"
+                tone="blue"
+              />
+              <Metric
+                icon={<CheckCircle2 size={18} />}
+                label="启用用户"
+                value={enabledUsers}
+                caption="可进入管理控制台"
+                tone="teal"
+              />
+              <Metric
+                icon={<ShieldCheck size={18} />}
+                label="管理员"
+                value={users.filter((user) => user.role === 'ADMIN').length}
+                caption="保留至少一个启用管理员"
+                tone="violet"
+              />
+              <Metric
+                icon={<UserPlus size={18} />}
+                label="可新增"
+                value="CRUD"
+                caption="添加、启停、删除用户"
+                tone="amber"
+              />
+            </section>
+
+            <Panel title="添加后台用户" icon={<UserPlus size={18} />}>
+              <form className="provider-form" onSubmit={submitUser}>
+                <div className="form-grid">
+                  <label>
+                    <span>用户 ID</span>
+                    <input
+                      required
+                      pattern="[A-Za-z0-9][A-Za-z0-9-]{1,48}"
+                      value={userForm.userId}
+                      onChange={(event) =>
+                        setUserForm((current) => ({
+                          ...current,
+                          userId: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''),
+                        }))
+                      }
+                      placeholder="production-admin"
+                    />
+                  </label>
+                  <label>
+                    <span>姓名</span>
+                    <input
+                      required
+                      value={userForm.displayName}
+                      onChange={(event) =>
+                        setUserForm((current) => ({ ...current, displayName: event.target.value }))
+                      }
+                      placeholder="张工"
+                    />
+                  </label>
+                  <label>
+                    <span>登录名</span>
+                    <input
+                      required
+                      pattern="[A-Za-z0-9._-]{2,64}"
+                      value={userForm.username}
+                      onChange={(event) =>
+                        setUserForm((current) => ({
+                          ...current,
+                          username: event.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''),
+                        }))
+                      }
+                      placeholder="zhang.gong"
+                    />
+                  </label>
+                  <label>
+                    <span>邮箱</span>
+                    <input
+                      required
+                      type="email"
+                      value={userForm.email}
+                      onChange={(event) =>
+                        setUserForm((current) => ({ ...current, email: event.target.value }))
+                      }
+                      placeholder="user@ark-mfg.com"
+                    />
+                  </label>
+                  <label>
+                    <span>部门</span>
+                    <input
+                      required
+                      value={userForm.department}
+                      onChange={(event) =>
+                        setUserForm((current) => ({ ...current, department: event.target.value }))
+                      }
+                      placeholder="生产运营"
+                    />
+                  </label>
+                  <label>
+                    <span>角色</span>
+                    <select
+                      value={userForm.role}
+                      onChange={(event) =>
+                        setUserForm((current) => ({
+                          ...current,
+                          role: event.target.value as PlatformUserRole,
+                        }))
+                      }
+                    >
+                      {roleOptions.map((role) => (
+                        <option key={role.id} value={role.id}>
+                          {role.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="form-switches">
+                    <label className="checkbox-line">
+                      <input
+                        type="checkbox"
+                        checked={userForm.enabled}
+                        onChange={(event) =>
+                          setUserForm((current) => ({ ...current, enabled: event.target.checked }))
+                        }
+                      />
+                      <span>保存后启用</span>
+                    </label>
+                  </div>
+                </div>
+                <div className="form-actions">
+                  <button type="submit" disabled={userSubmitting}>
+                    <UserPlus size={16} />
+                    <span>{userSubmitting ? '保存中' : '保存用户'}</span>
+                  </button>
+                  <p className="hint">当前为后台管理用户，至少保留一个启用的管理员账号。</p>
+                </div>
+                {userMessage && <p className="status-message">{userMessage}</p>}
+              </form>
+            </Panel>
+
+            <Panel title="后台用户" icon={<Users size={18} />}>
+              <div className="provider-grid">
+                {filteredUsers.map((user) => (
+                  <article key={user.userId} className="provider-card user-card">
+                    <div className="provider-head">
+                      <strong>{user.displayName}</strong>
+                      <span className={user.enabled ? 'status-dot on' : 'status-dot'} />
+                    </div>
+                    <span>{roleLabel(user.role)}</span>
+                    <p>{user.department} · {user.email}</p>
+                    <div className="user-meta">
+                      <small>@{user.username}</small>
+                      <small>{formatDate(user.createdAt)}</small>
+                    </div>
+                    <div className="badges">
+                      <em className={user.enabled ? 'ok' : 'muted'}>
+                        {user.enabled ? '启用中' : '已停用'}
+                      </em>
+                      <em>{user.source === 'SYSTEM' ? '系统初始化' : '管理员添加'}</em>
+                      <em>{user.userId}</em>
+                    </div>
+                    <div className="card-actions">
+                      <button type="button" onClick={() => toggleUser(user)}>
+                        <Power size={14} />
+                        <span>{user.enabled ? '停用' : '启用'}</span>
+                      </button>
+                      {user.source !== 'SYSTEM' && (
+                        <button type="button" className="danger" onClick={() => deleteUser(user)}>
+                          <Trash2 size={14} />
+                          <span>删除</span>
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                ))}
+                {filteredUsers.length === 0 && <EmptyState message="没有匹配的后台用户。" />}
+              </div>
+            </Panel>
+          </div>
+        )}
+
         {activeView === 'datasets' && (
           <Panel title="数据集格式" icon={<FlaskConical size={18} />}>
             <div className="export-tools">
@@ -986,6 +1309,15 @@ function DataTable({
       </table>
     </div>
   )
+}
+
+function roleLabel(role: PlatformUserRole) {
+  return roleOptions.find((item) => item.id === role)?.label || role
+}
+
+function formatDate(value: string | null) {
+  if (!value) return '未登录'
+  return new Date(value).toLocaleDateString('zh-CN', { timeZone: 'UTC' })
 }
 
 function formatLabel(format: DatasetFormat) {

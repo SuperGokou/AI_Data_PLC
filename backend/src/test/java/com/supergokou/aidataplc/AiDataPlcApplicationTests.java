@@ -1,13 +1,18 @@
 package com.supergokou.aidataplc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.supergokou.aidataplc.domain.DatasetFormat;
 import com.supergokou.aidataplc.domain.ModelProviderSetting;
+import com.supergokou.aidataplc.domain.PlatformUser;
+import com.supergokou.aidataplc.domain.PlatformUserRole;
 import com.supergokou.aidataplc.dto.ModelProviderUpsertRequest;
+import com.supergokou.aidataplc.dto.UserUpsertRequest;
 import com.supergokou.aidataplc.service.DatasetService;
 import com.supergokou.aidataplc.service.ModelProviderService;
 import com.supergokou.aidataplc.service.SampleDataService;
+import com.supergokou.aidataplc.service.UserManagementService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -23,6 +28,9 @@ class AiDataPlcApplicationTests {
 
   @Autowired
   private SampleDataService sampleDataService;
+
+  @Autowired
+  private UserManagementService userManagementService;
 
   @Test
   void exposesAllRequiredDatasetFormats() {
@@ -62,5 +70,34 @@ class AiDataPlcApplicationTests {
     modelProviderService.deleteProvider("customer-gateway");
     assertThat(modelProviderService.providers())
         .noneMatch(item -> item.providerId().equals("customer-gateway"));
+  }
+
+  @Test
+  void managesRuntimeUsersAndProtectsBootstrapAdmin() {
+    PlatformUser user = userManagementService.upsertUser(
+        new UserUpsertRequest(
+            "data-admin",
+            "Data Admin",
+            "data.admin",
+            "data.admin@ark-mfg.local",
+            PlatformUserRole.ADMIN,
+            "Data Platform",
+            true));
+
+    assertThat(user.userId()).isEqualTo("data-admin");
+    assertThat(user.role()).isEqualTo(PlatformUserRole.ADMIN);
+    assertThat(user.enabled()).isTrue();
+    assertThat(user.source()).isEqualTo("USER_ADDED");
+
+    PlatformUser disabled = userManagementService.setUserEnabled("data-admin", false);
+    assertThat(disabled.enabled()).isFalse();
+
+    userManagementService.deleteUser("data-admin");
+    assertThat(userManagementService.users())
+        .noneMatch(item -> item.userId().equals("data-admin"));
+
+    assertThatThrownBy(() -> userManagementService.deleteUser("admin"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("System bootstrap users");
   }
 }

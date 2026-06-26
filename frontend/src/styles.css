@@ -18,7 +18,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -778,7 +779,8 @@ td {
   font-weight: 800;
 }
 
-.form-grid input {
+.form-grid input,
+.form-grid select {
   width: 100%;
   min-height: 40px;
   padding: 8px 10px;
@@ -789,7 +791,8 @@ td {
   outline: 0;
 }
 
-.form-grid input:focus {
+.form-grid input:focus,
+.form-grid select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
@@ -856,6 +859,25 @@ td {
   color: var(--accent);
   font-size: 13px;
   font-weight: 800;
+}
+
+.user-card p {
+  word-break: break-word;
+}
+
+.user-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--muted);
+}
+
+.user-meta small {
+  padding: 4px 7px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
 }
 
 .status-dot {
