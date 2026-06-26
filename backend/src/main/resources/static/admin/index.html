@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>方舟智造（上海）后台管理台</title>
+    <link rel="stylesheet" href="./admin.css" />
+  </head>
+  <body>
+    <div class="admin-shell" data-theme="aurora">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">AI</div>
+          <div>
+            <strong>方舟智造（上海）</strong>
+            <span>工业数据中台 · Backend</span>
+          </div>
+        </div>
+        <nav class="nav" aria-label="后台导航">
+          <button class="active" type="button" data-view="overview">
+            <span class="nav-dot"></span>管理总览
+          </button>
+          <button type="button" data-view="users">
+            <span class="nav-dot"></span>用户管理
+          </button>
+          <button type="button" data-view="models">
+            <span class="nav-dot"></span>模型/API
+          </button>
+          <button type="button" data-view="data">
+            <span class="nav-dot"></span>数据接口
+          </button>
+        </nav>
+        <a class="frontend-link" href="https://ai-data-plc-frontend.onrender.com/" target="_blank" rel="noreferrer">
+          打开展示端
+        </a>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p id="view-kicker">管理总览</p>
+            <h1 id="view-title">工业数据中台后台</h1>
+          </div>
+          <div class="topbar-actions">
+            <div class="theme-switch" aria-label="主题选择" role="group">
+              <button class="active" type="button" data-theme-choice="aurora">智控</button>
+              <button type="button" data-theme-choice="graphite">石墨</button>
+            </div>
+            <a href="/api/v1" target="_blank" rel="noreferrer">API 索引</a>
+            <button id="refresh" type="button">刷新</button>
+          </div>
+        </header>
+        <section id="status" class="status" aria-live="polite"></section>
+        <section id="app" class="content"></section>
+      </main>
+    </div>
+    <script type="module" src="./admin.js"></script>
+  </body>
+</html>
