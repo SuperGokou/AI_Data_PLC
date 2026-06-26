@@ -16,6 +16,14 @@
   <img src="https://img.shields.io/badge/Docker-Compose-2496ED" alt="Docker Compose" />
 </p>
 
+<p align="center">
+  <a href="https://ai-data-plc-frontend.onrender.com"><strong>Live Demo</strong></a>
+  ·
+  <a href="https://ai-data-plc-backend.onrender.com/actuator/health">API Health</a>
+  ·
+  <a href="https://ai-data-plc-backend.onrender.com/api/v1/overview">Overview API</a>
+</p>
+
 ---
 
 ## Live Deployment
