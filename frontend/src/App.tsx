@@ -1,20 +1,40 @@
+import type { FormEvent, ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import {
   Activity,
   AlertTriangle,
   Boxes,
   BrainCircuit,
+  CheckCircle2,
+  CircleDot,
   Database,
   Factory,
+  FileSpreadsheet,
   FlaskConical,
   Gauge,
   GitBranch,
+  KeyRound,
   PlusCircle,
   Power,
   RefreshCw,
+  Search,
+  ServerCog,
   ShieldCheck,
+  SlidersHorizontal,
   Trash2,
 } from 'lucide-react'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 
 type Overview = {
   activeBatches: number
@@ -87,7 +107,14 @@ type ProviderForm = {
   enabled: boolean
 }
 
+type DatasetFormat = 'CSV' | 'JSON' | 'EXCEL' | 'PARQUET' | 'REST_API' | 'DB_VIEW'
+type ThemeId = 'industrial' | 'aurora' | 'graphite'
+type StatDatum = { name: string; value: number }
+type FetchResult<T> = { data: T; ok: boolean }
+
 const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+const datasetFallback: DatasetFormat[] = ['CSV', 'JSON', 'EXCEL', 'PARQUET', 'REST_API', 'DB_VIEW']
+const chartColors = ['#4f8cff', '#14b8a6', '#8b6cf6', '#f2b84b', '#ef6f6c', '#65758b']
 
 const fallbackOverview: Overview = {
   activeBatches: 0,
@@ -108,13 +135,19 @@ const emptyProviderForm: ProviderForm = {
   enabled: true,
 }
 
-async function fetchJson<T>(path: string, fallback: T): Promise<T> {
+const themeOptions: Array<{ id: ThemeId; label: string }> = [
+  { id: 'industrial', label: '工业' },
+  { id: 'aurora', label: '智控' },
+  { id: 'graphite', label: '石墨' },
+]
+
+async function fetchJson<T>(path: string, fallback: T): Promise<FetchResult<T>> {
   try {
     const response = await fetch(`${apiBase}${path}`)
-    if (!response.ok) return fallback
-    return await response.json()
+    if (!response.ok) return { data: fallback, ok: false }
+    return { data: await response.json(), ok: true }
   } catch {
-    return fallback
+    return { data: fallback, ok: false }
   }
 }
 
@@ -131,15 +164,37 @@ async function sendJson<T>(path: string, method: string, body: unknown): Promise
   return response.json()
 }
 
+function countBy<T>(items: T[], getKey: (item: T) => string | null | undefined): StatDatum[] {
+  const counts = new Map<string, number>()
+  for (const item of items) {
+    const key = (getKey(item) || '未标注').trim() || '未标注'
+    counts.set(key, (counts.get(key) || 0) + 1)
+  }
+  return [...counts.entries()]
+    .map(([name, value]) => ({ name, value }))
+    .sort((left, right) => right.value - left.value || left.name.localeCompare(right.name))
+}
+
+function matchesQuery(values: Array<string | number | boolean>, query: string) {
+  if (!query) return true
+  return values.some((value) => String(value).toLowerCase().includes(query))
+}
+
 export default function App() {
   const [activeView, setActiveView] = useState('overview')
+  const [theme, setTheme] = useState<ThemeId>('industrial')
+  const [query, setQuery] = useState('')
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState('')
+  const [refreshError, setRefreshError] = useState('')
   const [overview, setOverview] = useState<Overview>(fallbackOverview)
   const [batches, setBatches] = useState<Batch[]>([])
   const [points, setPoints] = useState<Point[]>([])
   const [steps, setSteps] = useState<ProcessStep[]>([])
   const [providers, setProviders] = useState<Provider[]>([])
   const [policy, setPolicy] = useState<ControlPolicy | null>(null)
-  const [exportFormat, setExportFormat] = useState('CSV')
+  const [datasetFormats, setDatasetFormats] = useState<DatasetFormat[]>(datasetFallback)
+  const [exportFormat, setExportFormat] = useState<DatasetFormat>('CSV')
   const [providerForm, setProviderForm] = useState<ProviderForm>(emptyProviderForm)
   const [providerSubmitting, setProviderSubmitting] = useState(false)
   const [providerMessage, setProviderMessage] = useState('')
@@ -149,7 +204,9 @@ export default function App() {
   }, [])
 
   async function refresh() {
-    const [nextOverview, nextBatches, nextPoints, nextSteps, nextProviders, nextPolicy] =
+    setIsRefreshing(true)
+    setRefreshError('')
+    const [overviewResult, batchesResult, pointsResult, stepsResult, providersResult, policyResult, formatsResult] =
       await Promise.all([
         fetchJson('/api/v1/overview', fallbackOverview),
         fetchJson<Batch[]>('/api/v1/batches', []),
@@ -157,16 +214,37 @@ export default function App() {
         fetchJson<ProcessStep[]>('/api/v1/process-steps', []),
         fetchJson<Provider[]>('/api/v1/models/providers', []),
         fetchJson<ControlPolicy | null>('/api/v1/models/control-policy', null),
+        fetchJson<DatasetFormat[]>('/api/v1/datasets/formats', datasetFallback),
       ])
-    setOverview(nextOverview)
-    setBatches(nextBatches)
-    setPoints(nextPoints)
-    setSteps(nextSteps)
-    setProviders(nextProviders)
-    setPolicy(nextPolicy)
+
+    if (overviewResult.ok) setOverview(overviewResult.data)
+    if (batchesResult.ok) setBatches(batchesResult.data)
+    if (pointsResult.ok) setPoints(pointsResult.data)
+    if (stepsResult.ok) setSteps(stepsResult.data)
+    if (providersResult.ok) setProviders(providersResult.data)
+    if (policyResult.ok) setPolicy(policyResult.data)
+    if (formatsResult.ok) {
+      setDatasetFormats(formatsResult.data)
+      if (!formatsResult.data.includes(exportFormat)) {
+        setExportFormat(formatsResult.data[0] || 'CSV')
+      }
+    }
+
+    const failed = [
+      overviewResult,
+      batchesResult,
+      pointsResult,
+      stepsResult,
+      providersResult,
+      policyResult,
+      formatsResult,
+    ].some((result) => !result.ok)
+    setRefreshError(failed ? '部分接口暂不可用，当前保留最近一次可用数据或空状态。' : '')
+    setLastUpdated(new Date().toLocaleTimeString('zh-CN', { hour12: false }))
+    setIsRefreshing(false)
   }
 
-  async function submitProvider(event: React.FormEvent<HTMLFormElement>) {
+  async function submitProvider(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setProviderSubmitting(true)
     setProviderMessage('')
@@ -218,6 +296,42 @@ export default function App() {
     }
   }
 
+  const normalizedQuery = query.trim().toLowerCase()
+  const sourceStats = useMemo(() => countBy(points, (point) => point.source), [points])
+  const workshopStats = useMemo(() => countBy(steps, (step) => step.workshop), [steps])
+  const typeStats = useMemo(() => countBy(points, (point) => point.dataType), [points])
+  const filteredPoints = useMemo(
+    () =>
+      points.filter((point) =>
+        matchesQuery(
+          [
+            point.fieldName,
+            point.displayName,
+            point.dataType,
+            point.unitOrFormat,
+            point.source,
+            point.processStep,
+          ],
+          normalizedQuery,
+        ),
+      ),
+    [normalizedQuery, points],
+  )
+  const filteredSteps = useMemo(
+    () =>
+      steps.filter((step) =>
+        matchesQuery(
+          [step.sequence, step.workshop, step.stepName, step.controlPoint, step.wipStatus, step.equipment],
+          normalizedQuery,
+        ),
+      ),
+    [normalizedQuery, steps],
+  )
+
+  const aiReadyPoints = points.filter((point) => point.requiredForAiDataset).length
+  const configuredProviders = providers.filter((provider) => provider.configured && provider.enabled).length
+  const sourceCount = sourceStats.length
+
   const navigation = useMemo(
     () => [
       { id: 'overview', label: '总览', icon: Gauge },
@@ -232,17 +346,22 @@ export default function App() {
     [],
   )
 
+  const activeNav = navigation.find((item) => item.id === activeView) || navigation[0]
+
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-theme={theme}>
       <aside className="sidebar">
         <div className="brand">
-          <Factory size={22} />
+          <div className="brand-mark">
+            <Factory size={24} />
+          </div>
           <div>
             <strong>AI Data PLC</strong>
             <span>方舟智造（上海） · 工业数据中台</span>
           </div>
         </div>
-        <nav>
+
+        <nav aria-label="主导航">
           {navigation.map((item) => {
             const Icon = item.icon
             return (
@@ -251,6 +370,7 @@ export default function App() {
                 className={activeView === item.id ? 'active' : ''}
                 onClick={() => setActiveView(item.id)}
                 title={item.label}
+                type="button"
               >
                 <Icon size={18} />
                 <span>{item.label}</span>
@@ -258,46 +378,162 @@ export default function App() {
             )
           })}
         </nav>
+
+        <div className="sidebar-footer">
+          <div>
+            <span>实时目标</span>
+            <strong>{overview.realtimeDelaySeconds}s</strong>
+          </div>
+          <div>
+            <span>数据源</span>
+            <strong>{sourceCount}</strong>
+          </div>
+        </div>
       </aside>
 
       <main>
         <header className="topbar">
-          <div>
-            <h1>{navigation.find((item) => item.id === activeView)?.label}</h1>
-            <p>默认实时目标 {overview.realtimeDelaySeconds}s，可按设备/测点后续调节</p>
+          <div className="title-block">
+            <p>{activeNav.label}</p>
+            <h1>工业数据中台控制台</h1>
           </div>
-          <button className="icon-button" onClick={refresh} title="刷新数据">
-            <RefreshCw size={18} />
-          </button>
+
+          <div className="topbar-controls">
+            <label className="search-box">
+              <Search size={16} />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="搜索测点、工艺、来源"
+              />
+            </label>
+
+            <div className="theme-switch" aria-label="主题选择" role="group">
+              {themeOptions.map((option) => (
+                <button
+                  key={option.id}
+                  className={theme === option.id ? 'active' : ''}
+                  onClick={() => setTheme(option.id)}
+                  type="button"
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
+            <div className={refreshError ? 'refresh-status error' : 'refresh-status'}>
+              <span>{isRefreshing ? '同步中' : lastUpdated ? `更新 ${lastUpdated}` : '等待同步'}</span>
+              {refreshError && <strong>{refreshError}</strong>}
+            </div>
+
+            <button
+              className={isRefreshing ? 'icon-button spinning' : 'icon-button'}
+              disabled={isRefreshing}
+              onClick={refresh}
+              title="刷新数据"
+              type="button"
+            >
+              <RefreshCw size={18} />
+            </button>
+          </div>
         </header>
 
         {activeView === 'overview' && (
-          <>
-            <section className="metric-grid">
-              <Metric label="活跃批次" value={overview.activeBatches} tone="green" />
-              <Metric label="已配置测点" value={overview.configuredPoints} tone="blue" />
-              <Metric label="在线设备" value={overview.onlineDevices} tone="steel" />
-              <Metric label="活跃告警" value={overview.activeAlerts} tone="red" />
+          <div className="view-stack">
+            <section className="command-band">
+              <div>
+                <span className="eyebrow">真实表格源</span>
+                <h2>AI 测点与全流程工艺已接入</h2>
+                <p>当前页面只展示 Excel 表格可追溯数据；未提供的批次、时序曲线、告警事件保持空状态。</p>
+              </div>
+              <div className="band-kpis">
+                <MiniKpi label="AI测点" value={points.length} />
+                <MiniKpi label="工艺节点" value={steps.length} />
+                <MiniKpi label="AI必需" value={aiReadyPoints} />
+              </div>
             </section>
-            <section className="split">
-              <Panel title="实时曲线数据" icon={<Database size={18} />}>
-                <EmptyState message="原始表格未提供温度、pH、上染率的时序曲线记录，暂不展示模拟曲线。" />
+
+            <section className="metric-grid">
+              <Metric
+                icon={<Database size={18} />}
+                label="已配置测点"
+                value={overview.configuredPoints || points.length}
+                caption="来自 AI数据采集测点清单.xls"
+                tone="blue"
+              />
+              <Metric
+                icon={<GitBranch size={18} />}
+                label="工艺节点"
+                value={steps.length}
+                caption="来自 全流程工艺文档.xlsx"
+                tone="teal"
+              />
+              <Metric
+                icon={<ServerCog size={18} />}
+                label="可用模型"
+                value={configuredProviders}
+                caption="后台 API Provider 配置"
+                tone="violet"
+              />
+              <Metric
+                icon={<SlidersHorizontal size={18} />}
+                label="实时目标"
+                value={`${overview.realtimeDelaySeconds}s`}
+                caption={overview.aiControlMode}
+                tone="amber"
+              />
+            </section>
+
+            <section className="dashboard-grid">
+              <Panel title="测点来源分布" icon={<Database size={18} />} className="span-7">
+                <BarPanel data={sourceStats.slice(0, 6)} />
               </Panel>
-              <Panel title="AI反控策略" icon={<ShieldCheck size={18} />}>
+
+              <Panel title="工艺车间覆盖" icon={<Factory size={18} />} className="span-5">
+                <DonutPanel data={workshopStats} />
+              </Panel>
+
+              <Panel title="数据类型结构" icon={<FileSpreadsheet size={18} />} className="span-7">
+                <DistributionList data={typeStats} total={points.length} />
+              </Panel>
+
+              <Panel title="AI 反控策略" icon={<ShieldCheck size={18} />} className="span-5">
                 <PolicyCard policy={policy} />
               </Panel>
             </section>
-          </>
+          </div>
         )}
 
         {activeView === 'collection' && (
-          <Panel title="采集链路" icon={<Activity size={18} />}>
-            <div className="pipeline">
-              {['PLC', 'MQTT/Kafka', '治理规整', 'MySQL/InfluxDB', 'AI数据集'].map((item) => (
-                <div key={item} className="pipeline-node">{item}</div>
+          <div className="view-stack">
+            <section className="pipeline">
+              {['PLC', 'MQTT/Kafka', '数据治理', 'MySQL/InfluxDB', 'AI 数据集'].map((item, index) => (
+                <div key={item} className="pipeline-node">
+                  <span>{index + 1}</span>
+                  <strong>{item}</strong>
+                </div>
               ))}
-            </div>
-          </Panel>
+            </section>
+
+            <section className="dashboard-grid">
+              <Panel title="采集来源" icon={<Activity size={18} />} className="span-5">
+                <DistributionList data={sourceStats} total={points.length} />
+              </Panel>
+              <Panel title="测点预览" icon={<Database size={18} />} className="span-7">
+                <DataTable
+                  headers={['字段', '中文名', '类型', '来源', '工序']}
+                  rows={filteredPoints.slice(0, 12).map((point) => [
+                    point.fieldName,
+                    point.displayName,
+                    point.dataType,
+                    point.source,
+                    point.processStep,
+                  ])}
+                  emptyMessage="没有匹配的真实测点"
+                />
+              </Panel>
+            </section>
+          </div>
         )}
 
         {activeView === 'batches' && (
@@ -319,188 +555,216 @@ export default function App() {
         )}
 
         {activeView === 'process' && (
-          <Panel title="工艺/WIP映射" icon={<GitBranch size={18} />}>
-            <div className="step-grid">
-              {steps.map((step) => (
-                <article key={`${step.sequence}-${step.stepName}`} className="step-card">
-                  <span>{step.sequence}</span>
-                  <strong>{step.workshop} · {step.stepName}</strong>
-                  <p>{step.controlPoint}</p>
-                  <small>{step.wipStatus}</small>
-                </article>
-              ))}
-            </div>
-          </Panel>
+          <div className="view-stack">
+            <Panel title="车间节点统计" icon={<Factory size={18} />}>
+              <BarPanel data={workshopStats.slice(0, 8)} />
+            </Panel>
+
+            <Panel title="工艺 / WIP 映射" icon={<GitBranch size={18} />}>
+              <div className="step-grid">
+                {filteredSteps.map((step) => (
+                  <article key={`${step.sequence}-${step.stepName}`} className="step-card">
+                    <span>{String(step.sequence).padStart(2, '0')}</span>
+                    <strong>
+                      {step.workshop} · {step.stepName}
+                    </strong>
+                    <p>{step.controlPoint}</p>
+                    <small>{step.wipStatus}</small>
+                  </article>
+                ))}
+                {filteredSteps.length === 0 && <EmptyState message="没有匹配的真实工艺节点。" />}
+              </div>
+            </Panel>
+          </div>
         )}
 
         {activeView === 'points' && (
-          <Panel title="AI采集测点" icon={<Database size={18} />}>
+          <Panel title="AI 采集测点" icon={<Database size={18} />}>
             <DataTable
-              headers={['字段', '中文名', '类型', '单位', '来源', '工序']}
-              rows={points.map((point) => [
+              headers={['序号', '字段', '中文名', '类型', '单位/格式', '来源', '工序', 'AI必需']}
+              rows={filteredPoints.map((point) => [
+                String(point.orderNo),
                 point.fieldName,
                 point.displayName,
                 point.dataType,
                 point.unitOrFormat,
                 point.source,
                 point.processStep,
+                point.requiredForAiDataset ? '是' : '否',
               ])}
+              emptyMessage="没有匹配的真实测点"
             />
           </Panel>
         )}
 
         {activeView === 'models' && (
-          <Panel title="模型供应商" icon={<BrainCircuit size={18} />}>
-            <form className="provider-form" onSubmit={submitProvider}>
-              <div className="form-grid">
-                <label>
-                  <span>Provider ID</span>
-                  <input
-                    required
-                    pattern="[a-z0-9][a-z0-9-]{1,48}"
-                    value={providerForm.providerId}
-                    onChange={(event) =>
-                      setProviderForm((current) => ({
-                        ...current,
-                        providerId: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''),
-                      }))
-                    }
-                    placeholder="customer-gateway"
-                  />
-                </label>
-                <label>
-                  <span>显示名称</span>
-                  <input
-                    required
-                    value={providerForm.displayName}
-                    onChange={(event) =>
-                      setProviderForm((current) => ({ ...current, displayName: event.target.value }))
-                    }
-                    placeholder="客户自有模型网关"
-                  />
-                </label>
-                <label>
-                  <span>API Base URL</span>
-                  <input
-                    required
-                    type="url"
-                    value={providerForm.baseUrl}
-                    onChange={(event) =>
-                      setProviderForm((current) => ({ ...current, baseUrl: event.target.value }))
-                    }
-                    placeholder="https://api.example.com/v1"
-                  />
-                </label>
-                <label>
-                  <span>模型名称</span>
-                  <input
-                    required
-                    value={providerForm.modelName}
-                    onChange={(event) =>
-                      setProviderForm((current) => ({ ...current, modelName: event.target.value }))
-                    }
-                    placeholder="industrial-dyeing-v1"
-                  />
-                </label>
-                <label>
-                  <span>API Key</span>
-                  <input
-                    required
-                    type="password"
-                    value={providerForm.apiKey}
-                    onChange={(event) =>
-                      setProviderForm((current) => ({ ...current, apiKey: event.target.value }))
-                    }
-                    placeholder="sk-..."
-                  />
-                </label>
-                <div className="form-switches">
-                  <label className="checkbox-line">
+          <div className="view-stack">
+            <Panel title="添加模型 API" icon={<KeyRound size={18} />}>
+              <form className="provider-form" onSubmit={submitProvider}>
+                <div className="form-grid">
+                  <label>
+                    <span>Provider ID</span>
                     <input
-                      type="checkbox"
-                      checked={providerForm.industrialAlgorithmCapable}
+                      required
+                      pattern="[a-z0-9][a-z0-9-]{1,48}"
+                      value={providerForm.providerId}
                       onChange={(event) =>
                         setProviderForm((current) => ({
                           ...current,
-                          industrialAlgorithmCapable: event.target.checked,
+                          providerId: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''),
                         }))
                       }
+                      placeholder="customer-gateway"
                     />
-                    <span>工业算法层</span>
                   </label>
-                  <label className="checkbox-line">
+                  <label>
+                    <span>显示名称</span>
                     <input
-                      type="checkbox"
-                      checked={providerForm.enabled}
+                      required
+                      value={providerForm.displayName}
                       onChange={(event) =>
-                        setProviderForm((current) => ({ ...current, enabled: event.target.checked }))
+                        setProviderForm((current) => ({ ...current, displayName: event.target.value }))
                       }
+                      placeholder="客户自有模型网关"
                     />
-                    <span>保存后启用</span>
                   </label>
-                </div>
-              </div>
-              <div className="form-actions">
-                <button type="submit" disabled={providerSubmitting}>
-                  <PlusCircle size={16} />
-                  <span>{providerSubmitting ? '保存中' : '保存 API Provider'}</span>
-                </button>
-                <p className="hint">API Key 只提交给后端，列表仅显示脱敏指纹。</p>
-              </div>
-              {providerMessage && <p className="status-message">{providerMessage}</p>}
-            </form>
-
-            <div className="provider-grid">
-              {providers.map((provider) => (
-                <article key={provider.providerId} className="provider-card">
-                  <strong>{provider.displayName}</strong>
-                  <span>{provider.modelName || '未配置模型'}</span>
-                  <p>{provider.baseUrl || '待配置 API Base URL'}</p>
-                  <div className="badges">
-                    <em className={provider.enabled ? 'ok' : 'muted'}>
-                      {provider.enabled ? '启用中' : '已停用'}
-                    </em>
-                    <em className={provider.configured ? 'ok' : 'muted'}>
-                      {provider.configured ? '已配置' : '缺少密钥'}
-                    </em>
-                    {provider.industrialAlgorithmCapable && <em>工业算法层</em>}
-                    {provider.source === 'USER_ADDED' && <em>用户添加</em>}
+                  <label>
+                    <span>API Base URL</span>
+                    <input
+                      required
+                      type="url"
+                      value={providerForm.baseUrl}
+                      onChange={(event) =>
+                        setProviderForm((current) => ({ ...current, baseUrl: event.target.value }))
+                      }
+                      placeholder="https://api.example.com/v1"
+                    />
+                  </label>
+                  <label>
+                    <span>模型名称</span>
+                    <input
+                      required
+                      value={providerForm.modelName}
+                      onChange={(event) =>
+                        setProviderForm((current) => ({ ...current, modelName: event.target.value }))
+                      }
+                      placeholder="industrial-dyeing-v1"
+                    />
+                  </label>
+                  <label>
+                    <span>API Key</span>
+                    <input
+                      required
+                      type="password"
+                      value={providerForm.apiKey}
+                      onChange={(event) =>
+                        setProviderForm((current) => ({ ...current, apiKey: event.target.value }))
+                      }
+                      placeholder="sk-..."
+                    />
+                  </label>
+                  <div className="form-switches">
+                    <label className="checkbox-line">
+                      <input
+                        type="checkbox"
+                        checked={providerForm.industrialAlgorithmCapable}
+                        onChange={(event) =>
+                          setProviderForm((current) => ({
+                            ...current,
+                            industrialAlgorithmCapable: event.target.checked,
+                          }))
+                        }
+                      />
+                      <span>工业算法层</span>
+                    </label>
+                    <label className="checkbox-line">
+                      <input
+                        type="checkbox"
+                        checked={providerForm.enabled}
+                        onChange={(event) =>
+                          setProviderForm((current) => ({ ...current, enabled: event.target.checked }))
+                        }
+                      />
+                      <span>保存后启用</span>
+                    </label>
                   </div>
-                  {provider.apiKeyFingerprint && (
-                    <small className="key-fingerprint">{provider.apiKeyFingerprint}</small>
-                  )}
-                  {provider.source === 'USER_ADDED' && (
-                    <div className="card-actions">
-                      <button type="button" onClick={() => toggleProvider(provider)}>
-                        <Power size={14} />
-                        <span>{provider.enabled ? '停用' : '启用'}</span>
-                      </button>
-                      <button type="button" className="danger" onClick={() => deleteProvider(provider)}>
-                        <Trash2 size={14} />
-                        <span>删除</span>
-                      </button>
+                </div>
+                <div className="form-actions">
+                  <button type="submit" disabled={providerSubmitting}>
+                    <PlusCircle size={16} />
+                    <span>{providerSubmitting ? '保存中' : '保存 API Provider'}</span>
+                  </button>
+                  <p className="hint">API Key 只提交给后端，列表仅显示脱敏指纹。</p>
+                </div>
+                {providerMessage && <p className="status-message">{providerMessage}</p>}
+              </form>
+            </Panel>
+
+            <Panel title="模型供应商" icon={<BrainCircuit size={18} />}>
+              <div className="provider-grid">
+                {providers.map((provider) => (
+                  <article key={provider.providerId} className="provider-card">
+                    <div className="provider-head">
+                      <strong>{provider.displayName}</strong>
+                      <span className={provider.enabled ? 'status-dot on' : 'status-dot'} />
                     </div>
-                  )}
-                </article>
-              ))}
-            </div>
-          </Panel>
+                    <span>{provider.modelName || '未配置模型'}</span>
+                    <p>{provider.baseUrl || '待配置 API Base URL'}</p>
+                    <div className="badges">
+                      <em className={provider.enabled ? 'ok' : 'muted'}>
+                        {provider.enabled ? '启用中' : '已停用'}
+                      </em>
+                      <em className={provider.configured ? 'ok' : 'muted'}>
+                        {provider.configured ? '已配置' : '缺少密钥'}
+                      </em>
+                      {provider.industrialAlgorithmCapable && <em>工业算法层</em>}
+                      {provider.source === 'USER_ADDED' && <em>用户添加</em>}
+                    </div>
+                    {provider.apiKeyFingerprint && (
+                      <small className="key-fingerprint">{provider.apiKeyFingerprint}</small>
+                    )}
+                    {provider.source === 'USER_ADDED' && (
+                      <div className="card-actions">
+                        <button type="button" onClick={() => toggleProvider(provider)}>
+                          <Power size={14} />
+                          <span>{provider.enabled ? '停用' : '启用'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="danger"
+                          onClick={() => deleteProvider(provider)}
+                        >
+                          <Trash2 size={14} />
+                          <span>删除</span>
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </Panel>
+          </div>
         )}
 
         {activeView === 'datasets' && (
-          <Panel title="数据集导出" icon={<FlaskConical size={18} />}>
+          <Panel title="数据集格式" icon={<FlaskConical size={18} />}>
             <div className="export-tools">
-              {['CSV', 'JSON', 'EXCEL', 'PARQUET', 'REST_API', 'DB_VIEW'].map((format) => (
+              {datasetFormats.map((format) => (
                 <button
                   key={format}
                   className={exportFormat === format ? 'selected' : ''}
                   onClick={() => setExportFormat(format)}
+                  type="button"
                 >
-                  {format}
+                  {formatLabel(format)}
                 </button>
               ))}
             </div>
-            <p className="hint">当前选择：{exportFormat}。导出任务会绑定批次、WIP事件、光谱曲线和AI标签。</p>
+            <div className="dataset-summary">
+              <CheckCircle2 size={18} />
+              <span>当前选择：{formatLabel(exportFormat)}</span>
+            </div>
+            <EmptyState message="批次实时表尚未提供，暂不创建带批次 ID 的导出任务。" />
           </Panel>
         )}
 
@@ -514,21 +778,56 @@ export default function App() {
   )
 }
 
-function Metric({ label, value, tone }: { label: string; value: number; tone: string }) {
+function Metric({
+  icon,
+  label,
+  value,
+  caption,
+  tone,
+}: {
+  icon: ReactNode
+  label: string
+  value: number | string
+  caption: string
+  tone: string
+}) {
   return (
     <article className={`metric ${tone}`}>
+      <div className="metric-icon">{icon}</div>
       <span>{label}</span>
       <strong>{value}</strong>
+      <small>{caption}</small>
     </article>
   )
 }
 
-function Panel({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+function MiniKpi({ label, value }: { label: string; value: number | string }) {
   return (
-    <section className="panel">
+    <div className="mini-kpi">
+      <strong>{value}</strong>
+      <span>{label}</span>
+    </div>
+  )
+}
+
+function Panel({
+  title,
+  icon,
+  children,
+  className = '',
+}: {
+  title: string
+  icon: ReactNode
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <section className={`panel ${className}`}>
       <div className="panel-title">
-        {icon}
-        <h2>{title}</h2>
+        <div>
+          {icon}
+          <h2>{title}</h2>
+        </div>
       </div>
       {children}
     </section>
@@ -536,12 +835,109 @@ function Panel({ title, icon, children }: { title: string; icon: React.ReactNode
 }
 
 function PolicyCard({ policy }: { policy: ControlPolicy | null }) {
-  if (!policy) return <p className="hint">策略加载中</p>
+  if (!policy) return <EmptyState message="策略加载中" />
   return (
     <div className="policy-card">
-      <strong>{policy.mode}</strong>
-      <span>{policy.requireHumanApproval ? '需要人工审批' : '仅建议/模拟'}</span>
+      <div className="policy-line">
+        <CircleDot size={16} />
+        <span>模式</span>
+        <strong>{policy.mode}</strong>
+      </div>
+      <div className="policy-line">
+        <ShieldCheck size={16} />
+        <span>审批</span>
+        <strong>{policy.requireHumanApproval ? '需要人工确认' : '建议 / 模拟'}</strong>
+      </div>
+      <div className="policy-line">
+        <Database size={16} />
+        <span>日志</span>
+        <strong>{policy.persistDecisionLog ? '持久化' : '未开启'}</strong>
+      </div>
       <p>{policy.safetyNote}</p>
+    </div>
+  )
+}
+
+function BarPanel({ data }: { data: StatDatum[] }) {
+  if (data.length === 0) return <EmptyState message="暂无可统计数据" />
+  return (
+    <div className="chart-wrap">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
+          <CartesianGrid vertical={false} strokeDasharray="3 3" />
+          <XAxis dataKey="name" tickLine={false} axisLine={false} minTickGap={12} />
+          <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={34} />
+          <Tooltip cursor={{ fill: 'rgba(79, 140, 255, 0.08)' }} />
+          <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+            {data.map((entry, index) => (
+              <Cell key={entry.name} fill={chartColors[index % chartColors.length]} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+function DonutPanel({ data }: { data: StatDatum[] }) {
+  if (data.length === 0) return <EmptyState message="暂无可统计数据" />
+  const total = data.reduce((sum, item) => sum + item.value, 0)
+  return (
+    <div className="donut-layout">
+      <div className="donut-chart">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              innerRadius="58%"
+              outerRadius="82%"
+              paddingAngle={3}
+              stroke="none"
+            >
+              {data.map((entry, index) => (
+                <Cell key={entry.name} fill={chartColors[index % chartColors.length]} />
+              ))}
+            </Pie>
+            <Tooltip />
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="donut-center">
+          <strong>{total}</strong>
+          <span>节点</span>
+        </div>
+      </div>
+      <DistributionList data={data} total={total} compact />
+    </div>
+  )
+}
+
+function DistributionList({
+  data,
+  total,
+  compact = false,
+}: {
+  data: StatDatum[]
+  total: number
+  compact?: boolean
+}) {
+  if (data.length === 0) return <EmptyState message="暂无可统计数据" />
+  return (
+    <div className={compact ? 'distribution compact' : 'distribution'}>
+      {data.map((item, index) => {
+        const percent = total > 0 ? Math.round((item.value / total) * 100) : 0
+        return (
+          <div key={item.name} className="distribution-row">
+            <span style={{ '--dot': chartColors[index % chartColors.length] } as React.CSSProperties} />
+            <strong>{item.name}</strong>
+            <em>{item.value}</em>
+            <div className="progress">
+              <i style={{ width: `${percent}%` }} />
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -563,17 +959,25 @@ function DataTable({
     <div className="table-wrap">
       <table>
         <thead>
-          <tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr>
+          <tr>
+            {headers.map((header) => (
+              <th key={header}>{header}</th>
+            ))}
+          </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td className="empty-cell" colSpan={headers.length}>{emptyMessage}</td>
+              <td className="empty-cell" colSpan={headers.length}>
+                {emptyMessage}
+              </td>
             </tr>
           ) : (
             rows.map((row, rowIndex) => (
               <tr key={rowIndex}>
-                {row.map((cell, cellIndex) => <td key={`${rowIndex}-${cellIndex}`}>{cell}</td>)}
+                {row.map((cell, cellIndex) => (
+                  <td key={`${rowIndex}-${cellIndex}`}>{cell}</td>
+                ))}
               </tr>
             ))
           )}
@@ -581,4 +985,8 @@ function DataTable({
       </table>
     </div>
   )
+}
+
+function formatLabel(format: DatasetFormat) {
+  return format.replace('_', ' ')
 }
