@@ -868,7 +868,7 @@ function BarPanel({ data }: { data: StatDatum[] }) {
           <XAxis dataKey="name" tickLine={false} axisLine={false} minTickGap={12} />
           <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={34} />
           <Tooltip cursor={{ fill: 'rgba(79, 140, 255, 0.08)' }} />
-          <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+          <Bar dataKey="value" isAnimationActive={false} radius={[6, 6, 0, 0]}>
             {data.map((entry, index) => (
               <Cell key={entry.name} fill={chartColors[index % chartColors.length]} />
             ))}
@@ -894,6 +894,7 @@ function DonutPanel({ data }: { data: StatDatum[] }) {
               innerRadius="58%"
               outerRadius="82%"
               paddingAngle={3}
+              isAnimationActive={false}
               stroke="none"
             >
               {data.map((entry, index) => (
