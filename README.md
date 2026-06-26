@@ -18,6 +18,14 @@
 
 ---
 
+## Live Deployment
+
+| Environment | URL |
+| --- | --- |
+| Render frontend | https://ai-data-plc-frontend.onrender.com |
+| Render backend API | https://ai-data-plc-backend.onrender.com |
+| Render backend health | https://ai-data-plc-backend.onrender.com/actuator/health |
+
 ## Overview
 
 AI Data PLC is an industrial data middle platform for textile dyeing production. It sits between the device collection layer and the AI algorithm layer:
