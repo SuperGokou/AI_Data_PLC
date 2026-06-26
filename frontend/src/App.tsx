@@ -135,7 +135,7 @@ type UserForm = {
 }
 
 type DatasetFormat = 'CSV' | 'JSON' | 'EXCEL' | 'PARQUET' | 'REST_API' | 'DB_VIEW'
-type ThemeId = 'industrial' | 'aurora' | 'graphite'
+type ThemeId = 'aurora' | 'graphite'
 type StatDatum = { name: string; value: number }
 type FetchResult<T> = { data: T; ok: boolean }
 
@@ -173,7 +173,6 @@ const emptyUserForm: UserForm = {
 }
 
 const themeOptions: Array<{ id: ThemeId; label: string }> = [
-  { id: 'industrial', label: '工业' },
   { id: 'aurora', label: '智控' },
   { id: 'graphite', label: '石墨' },
 ]
@@ -243,7 +242,7 @@ function matchesQuery(values: Array<string | number | boolean>, query: string) {
 
 export default function App() {
   const [activeView, setActiveView] = useState(initialView)
-  const [theme, setTheme] = useState<ThemeId>('industrial')
+  const [theme, setTheme] = useState<ThemeId>('aurora')
   const [query, setQuery] = useState('')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState('')
