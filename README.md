@@ -6,6 +6,11 @@
 </p>
 
 <p align="center">
+  <strong>企业：方舟智造（上海）</strong><br/>
+  Enterprise: Fangzhou Intelligent Manufacturing (Shanghai)
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/Java-21-orange" alt="Java 21" />
   <img src="https://img.shields.io/badge/Spring_Boot-3.3-green" alt="Spring Boot 3.3" />
   <img src="https://img.shields.io/badge/React-18-blue" alt="React 18" />
@@ -39,6 +44,8 @@
 ### 概览
 
 AI Data PLC 是一个面向纺织染整场景的工业数据中间平台。平台位于 PLC、ERP、光谱仪、能源模块等工业数据源与 AI 算法层之间，负责完成数据采集、清洗、批次对齐、工艺/WIP 映射、时序与业务数据存储、标准数据集导出，以及 AI 控制建议的安全闸门。
+
+本项目企业名为 **方舟智造（上海）**。
 
 当前版本围绕染缸生产批次建模，一个生产批次以统一的 `batch_id` 贯穿生产批次、工序流转、采集测点、光谱结果、AI 标签和数据集导出。
 
@@ -422,6 +429,8 @@ timeline
 ### Overview
 
 AI Data PLC is an industrial data middleware platform for textile dyeing production. It sits between industrial sources such as PLCs, ERP, spectrum devices, and energy modules, and the AI algorithm layer. It handles data collection, cleaning, batch alignment, process and WIP mapping, time-series and business storage, standardized dataset export, and the safety gate for AI control recommendations.
+
+The enterprise name for this project is **Fangzhou Intelligent Manufacturing (Shanghai)**, shown in Chinese as **方舟智造（上海）**.
 
 The current implementation is centered on dyeing batches. A single production run is represented by one stable `batch_id` that connects batch state, process movement, collection points, spectrum results, AI labels, and dataset export jobs.
 

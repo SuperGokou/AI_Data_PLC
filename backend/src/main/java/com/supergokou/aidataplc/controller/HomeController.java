@@ -11,6 +11,7 @@ public class HomeController {
   public Map<String, Object> home() {
     return Map.of(
         "service", "AI Data PLC Backend",
+        "company", "方舟智造（上海）",
         "status", "UP",
         "frontend", "https://ai-data-plc-frontend.onrender.com",
         "endpoints", Map.of(

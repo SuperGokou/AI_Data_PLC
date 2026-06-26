@@ -258,7 +258,7 @@ export default function App() {
           <Factory size={22} />
           <div>
             <strong>AI Data PLC</strong>
-            <span>工业数据中台</span>
+            <span>方舟智造（上海） · 工业数据中台</span>
           </div>
         </div>
         <nav>
